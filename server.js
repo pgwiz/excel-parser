@@ -127,7 +127,7 @@ async function getEmailMap(file) {
 function classifyResult(result) {
   if (!result) return 'partial';
   if (/done|ok|success|通过|有效/i.test(result)) return 'done';
-  return 'fail';
+  return result.trim().toLowerCase();
 }
 
 function clientIp(req) {

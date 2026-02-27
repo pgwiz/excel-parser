@@ -209,6 +209,8 @@
     .admin-table td { padding:10px 14px;border-bottom:1px solid rgba(100,150,200,0.07);vertical-align:middle; }
     .admin-table tr:last-child td { border-bottom:none; }
     .admin-table tr:hover td { background:rgba(0,212,255,0.03); }
+    .edit-row td { background:rgba(0,212,255,0.05);padding:12px 14px; }
+    .edit-row input { width:100%;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:8px;padding:6px 10px;color:var(--text);font-size:13px;outline:none; }
 
     /* Add-file form */
     .add-form { background:rgba(0,0,0,0.2);border:1px solid var(--glass-border);border-radius:14px;padding:24px;margin-bottom:24px; }
@@ -857,8 +859,8 @@
 
     function badgeHtml(status) {
       const map = { done:['badge-done','✅','Done'], fail:['badge-fail','❌','Fail'], partial:['badge-partial','🔶','Partial'], 'not found':['badge-notfound','—','Not Found'] };
-      const [cls,icon,lbl] = map[status] || map['not found'];
-      return `<span class="badge ${cls}">${icon} ${lbl}</span>`;
+      if (map[status]) { const [cls,icon,lbl]=map[status]; return `<span class="badge ${cls}">${icon} ${lbl}</span>`; }
+      return `<span class="badge badge-notfound" title="${escHtml(status)}">${escHtml(status)}</span>`;
     }
 
     function updateSummary(rows) {
@@ -1230,7 +1232,7 @@
         const files = await res.json();
         if (!files.length) { tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text-dim)">No sources registered yet.</td></tr>'; return; }
         tbody.innerHTML = files.map(f => `
-          <tr>
+          <tr data-id="${f.id}">
             <td><strong>${escHtml(f.label)}</strong></td>
             <td><span class="badge badge-${escHtml(f.source_type)}">${escHtml(f.source_type)}</span></td>
             <td style="font-family:var(--mono);font-size:11px">${escHtml(f.column_email)} / ${escHtml(f.column_result)}</td>
@@ -1239,6 +1241,7 @@
             <td><button class="toggle ${f.is_active?'on':''}" data-id="${f.id}" data-active="${f.is_active}"></button></td>
             <td style="font-size:11px;color:var(--text-dim)">${f.last_refreshed ? new Date(f.last_refreshed).toLocaleString() : '—'}</td>
             <td style="display:flex;gap:6px">
+              <button class="btn btn-outline btn-sm edit-btn" data-id="${f.id}" data-label="${escHtml(f.label)}" data-email="${escHtml(f.column_email)}" data-result="${escHtml(f.column_result)}" data-ttl="${f.cache_ttl_secs}">✏️</button>
               <button class="btn btn-outline btn-sm refresh-btn" data-id="${f.id}">↻</button>
               <button class="btn btn-danger btn-sm delete-btn" data-id="${f.id}">🗑</button>
             </td>
@@ -1249,6 +1252,39 @@
             const newActive = btn.dataset.active === 'true' ? false : true;
             await fetch('/admin/files/' + btn.dataset.id, { method:'PATCH', headers:{...authHeaders(),'Content-Type':'application/json'}, body:JSON.stringify({is_active:newActive}) });
             loadAdminFiles(); loadPublicFiles();
+          });
+        });
+        tbody.querySelectorAll('.edit-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            // Remove any existing edit row first
+            tbody.querySelectorAll('.edit-row').forEach(r => r.remove());
+            const parentRow = btn.closest('tr');
+            const editRow = document.createElement('tr');
+            editRow.className = 'edit-row';
+            editRow.innerHTML = `<td colspan="8">
+              <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+                <div style="flex:1;min-width:130px"><label style="font-size:11px;color:var(--text-dim)">Label</label><input id="eLabel" value="${escHtml(btn.dataset.label)}" /></div>
+                <div style="flex:1;min-width:110px"><label style="font-size:11px;color:var(--text-dim)">Email Column</label><input id="eEmail" value="${escHtml(btn.dataset.email)}" /></div>
+                <div style="flex:1;min-width:110px"><label style="font-size:11px;color:var(--text-dim)">Result Column</label><input id="eResult" value="${escHtml(btn.dataset.result)}" /></div>
+                <div style="flex:0 0 90px"><label style="font-size:11px;color:var(--text-dim)">Cache TTL (s)</label><input id="eTtl" type="number" min="30" value="${escHtml(btn.dataset.ttl)}" /></div>
+                <button class="btn btn-primary btn-sm" id="eSaveBtn" data-id="${escHtml(btn.dataset.id)}">Save</button>
+                <button class="btn btn-outline btn-sm" id="eCancelBtn">Cancel</button>
+              </div>
+            </td>`;
+            parentRow.after(editRow);
+            editRow.querySelector('#eCancelBtn').addEventListener('click', () => editRow.remove());
+            editRow.querySelector('#eSaveBtn').addEventListener('click', async () => {
+              const id = editRow.querySelector('#eSaveBtn').dataset.id;
+              const payload = {
+                label:          editRow.querySelector('#eLabel').value.trim(),
+                column_email:   editRow.querySelector('#eEmail').value.trim(),
+                column_result:  editRow.querySelector('#eResult').value.trim(),
+                cache_ttl_secs: parseInt(editRow.querySelector('#eTtl').value, 10),
+              };
+              const r = await fetch('/admin/files/' + id, { method:'PATCH', headers:{...authHeaders(),'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+              if (r.ok) { showToast('Saved'); loadAdminFiles(); loadPublicFiles(); }
+              else { const d = await r.json(); showToast(d.error || 'Save failed', 'error'); }
+            });
           });
         });
         tbody.querySelectorAll('.refresh-btn').forEach(btn => {
