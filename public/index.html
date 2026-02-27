@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EmailVault — Lookup Tool</title>
+  <style>
+    /* ── Reset & base ───────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #050a1a;
+      --bg2: #0b1230;
+      --glass: rgba(13,20,50,0.55);
+      --glass-border: rgba(100,180,255,0.18);
+      --accent: #00d4ff;
+      --accent2: #a855f7;
+      --green: #22d3a8;
+      --red: #f87171;
+      --yellow: #fbbf24;
+      --text: #e2eaf5;
+      --text-dim: #7090b8;
+      --font: 'Segoe UI', system-ui, sans-serif;
+      --mono: 'Cascadia Code', 'Fira Mono', monospace;
+    }
+    body.light {
+      --bg: #dde8f7;
+      --bg2: #c8d9f0;
+      --glass: rgba(255,255,255,0.55);
+      --glass-border: rgba(60,120,220,0.25);
+      --text: #1a2740;
+      --text-dim: #4a6080;
+    }
+
+    html { height: 100%; }
+    body {
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      overflow-x: hidden;
+      transition: background 0.4s, color 0.4s;
+    }
+
+    /* ── Aurora blobs ────────────────────────────────────────── */
+    .aurora {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      overflow: hidden;
+    }
+    .aurora span {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.25;
+      animation: drift 18s ease-in-out infinite alternate;
+    }
+    .aurora span:nth-child(1) {
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, #00d4ff55, transparent);
+      top: -200px; left: -150px;
+      animation-duration: 20s;
+    }
+    .aurora span:nth-child(2) {
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, #a855f755, transparent);
+      bottom: -150px; right: -100px;
+      animation-duration: 24s; animation-delay: -6s;
+    }
+    .aurora span:nth-child(3) {
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, #22d3a844, transparent);
+      top: 40%; left: 50%;
+      animation-duration: 28s; animation-delay: -12s;
+    }
+    @keyframes drift {
+      0%   { transform: translate(0,0) scale(1); }
+      50%  { transform: translate(60px,-40px) scale(1.1); }
+      100% { transform: translate(-30px,60px) scale(0.95); }
+    }
+
+    /* ── Layout ──────────────────────────────────────────────── */
+    .container {
+      position: relative; z-index: 1;
+      max-width: 1100px; margin: 0 auto;
+      padding: 24px 16px 120px;
+    }
+
+    /* ── Glass card ──────────────────────────────────────────── */
+    .card {
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: 18px;
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      padding: 28px;
+      margin-bottom: 20px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+      transition: background 0.4s, border-color 0.4s;
+    }
+
+    /* ── Header ──────────────────────────────────────────────── */
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 0 28px;
+    }
+    .logo { display: flex; align-items: center; gap: 12px; }
+    .logo-icon {
+      width: 44px; height: 44px; border-radius: 12px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+    }
+    .logo-text h1 {
+      font-size: 22px; font-weight: 700; letter-spacing: -0.5px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .logo-text p { font-size: 12px; color: var(--text-dim); }
+
+    .header-actions { display: flex; gap: 10px; align-items: center; }
+    .theme-toggle {
+      background: var(--glass); border: 1px solid var(--glass-border);
+      color: var(--text); border-radius: 50%; width: 38px; height: 38px;
+      cursor: pointer; font-size: 17px; display: flex; align-items: center;
+      justify-content: center; transition: background 0.3s;
+    }
+    .theme-toggle:hover { background: rgba(0,212,255,0.12); }
+
+    /* ── Section title ───────────────────────────────────────── */
+    .section-title {
+      font-size: 13px; font-weight: 600; letter-spacing: 1.5px;
+      text-transform: uppercase; color: var(--accent);
+      margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+    }
+    .section-title::after {
+      content: ''; flex: 1; height: 1px;
+      background: linear-gradient(90deg, var(--glass-border), transparent);
+    }
+
+    /* ── File selector strip ─────────────────────────────────── */
+    #existing-files-strip {
+      display: none;
+      gap: 8px; flex-wrap: wrap; margin-bottom: 14px;
+    }
+    #existing-files-strip.visible { display: flex; }
+    .file-chip {
+      background: rgba(0,212,255,0.08);
+      border: 1px solid rgba(0,212,255,0.25);
+      border-radius: 8px; padding: 6px 14px;
+      font-size: 12px; color: var(--text); cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .file-chip:hover, .file-chip.active {
+      background: rgba(0,212,255,0.18); border-color: var(--accent);
+    }
+    .file-chip-icon { font-size: 14px; }
+
+    /* ── Upload zone ─────────────────────────────────────────── */
+    .upload-zone {
+      border: 2px dashed var(--glass-border);
+      border-radius: 14px; padding: 40px 20px;
+      text-align: center; cursor: pointer;
+      transition: border-color 0.3s, background 0.3s;
+      position: relative; overflow: hidden;
+    }
+    .upload-zone.dragover, .upload-zone:hover {
+      border-color: var(--accent);
+      background: rgba(0,212,255,0.05);
+    }
+    @keyframes dash-anim {
+      to { stroke-dashoffset: -30; }
+    }
+    .upload-zone input[type=file] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer;
+    }
+    .upload-icon { font-size: 40px; margin-bottom: 10px; }
+    .upload-hint { color: var(--text-dim); font-size: 14px; margin-top: 6px; }
+    .upload-hint span { color: var(--accent); font-weight: 600; }
+
+    /* ── Status badge ────────────────────────────────────────── */
+    .status-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(34,211,168,0.1);
+      border: 1px solid rgba(34,211,168,0.3);
+      border-radius: 30px; padding: 6px 16px;
+      font-size: 13px; color: var(--green);
+      margin-top: 16px; display: none;
+    }
+    .status-badge.visible { display: inline-flex; }
+    .pulse {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--green);
+      animation: pulse-anim 1.6s ease-in-out infinite;
+    }
+    @keyframes pulse-anim {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(34,211,168,0.6); }
+      50%       { box-shadow: 0 0 0 6px rgba(34,211,168,0); }
+    }
+
+    .file-stats {
+      display: none; margin-top: 14px;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 10px; margin-top: 14px;
+    }
+    .file-stats.visible { display: grid; }
+    .stat-item {
+      background: rgba(0,0,0,0.2); border-radius: 10px;
+      padding: 10px 14px; text-align: center;
+    }
+    .stat-item .val {
+      font-size: 20px; font-weight: 700;
+      font-family: var(--mono); color: var(--accent);
+    }
+    .stat-item .lbl { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+    /* ── Textarea ────────────────────────────────────────────── */
+    textarea {
+      width: 100%; min-height: 160px; resize: vertical;
+      background: rgba(0,0,0,0.25); border: 1px solid var(--glass-border);
+      border-radius: 12px; padding: 16px; color: var(--text);
+      font-family: var(--mono); font-size: 13px; line-height: 1.6;
+      outline: none; transition: border-color 0.3s;
+    }
+    textarea:focus { border-color: var(--accent); }
+    .input-footer {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 10px; flex-wrap: wrap; gap: 10px;
+    }
+    .email-count {
+      font-size: 13px; color: var(--text-dim);
+    }
+    .email-count span { color: var(--accent); font-weight: 700; font-family: var(--mono); }
+
+    /* ── Email chips ─────────────────────────────────────────── */
+    .chips {
+      display: flex; flex-wrap: wrap; gap: 6px;
+      margin-top: 10px; max-height: 120px;
+      overflow-y: auto;
+    }
+    .email-pill {
+      background: rgba(168,85,247,0.12);
+      border: 1px solid rgba(168,85,247,0.3);
+      border-radius: 20px; padding: 3px 12px;
+      font-size: 11px; font-family: var(--mono);
+      color: var(--accent2);
+    }
+    .email-pill.dup {
+      background: rgba(251,191,36,0.12);
+      border-color: rgba(251,191,36,0.35);
+      color: var(--yellow);
+    }
+
+    /* ── Buttons ─────────────────────────────────────────────── */
+    .btn {
+      border: none; border-radius: 10px;
+      padding: 10px 24px; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: all 0.25s; outline: none;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff; position: relative; overflow: hidden;
+    }
+    .btn-primary::after {
+      content: ''; position: absolute; top: -50%; left: -80%;
+      width: 50%; height: 200%;
+      background: rgba(255,255,255,0.15);
+      transform: skewX(-20deg);
+      animation: shimmer 2.5s ease-in-out infinite;
+    }
+    @keyframes shimmer {
+      0%   { left: -80%; }
+      60%  { left: 130%; }
+      100% { left: 130%; }
+    }
+    .btn-primary:hover { opacity: 0.88; transform: translateY(-1px); }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--glass-border);
+      color: var(--text);
+    }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Filter bar ──────────────────────────────────────────── */
+    .filter-bar {
+      display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;
+      align-items: center;
+    }
+    .filter-btn {
+      padding: 5px 16px; border-radius: 20px; border: 1px solid var(--glass-border);
+      background: transparent; color: var(--text-dim); font-size: 12px;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .filter-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(0,212,255,0.08); }
+    .filter-btn.done-active   { border-color: var(--green);  color: var(--green);  background: rgba(34,211,168,0.08); }
+    .filter-btn.fail-active   { border-color: var(--red);    color: var(--red);    background: rgba(248,113,113,0.08); }
+
+    /* ── Table ───────────────────────────────────────────────── */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th {
+      text-align: left; padding: 10px 14px;
+      color: var(--text-dim); font-weight: 600; font-size: 11px;
+      letter-spacing: 1px; text-transform: uppercase;
+      border-bottom: 1px solid var(--glass-border);
+      cursor: pointer; white-space: nowrap;
+      user-select: none;
+    }
+    th:hover { color: var(--accent); }
+    th .sort-icon { opacity: 0.4; margin-left: 4px; }
+    th.sorted .sort-icon { opacity: 1; color: var(--accent); }
+    td {
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(100,150,200,0.07);
+      font-family: var(--mono); font-size: 12px;
+      vertical-align: middle;
+    }
+    tr.result-row {
+      opacity: 0; transform: translateY(8px);
+      animation: rowReveal 0.3s forwards;
+    }
+    @keyframes rowReveal {
+      to { opacity: 1; transform: translateY(0); }
+    }
+    tr.result-row:hover td { background: rgba(0,212,255,0.04); }
+
+    /* ── Status badges in table ──────────────────────────────── */
+    .badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      border-radius: 20px; padding: 3px 12px; font-size: 11px; font-weight: 600;
+    }
+    .badge-done    { background: rgba(34,211,168,0.15); color: var(--green); border: 1px solid rgba(34,211,168,0.3); }
+    .badge-fail    { background: rgba(248,113,113,0.15); color: var(--red);   border: 1px solid rgba(248,113,113,0.3); }
+    .badge-partial { background: rgba(251,191,36,0.12);  color: var(--yellow);border: 1px solid rgba(251,191,36,0.3); }
+    .badge-notfound { background: rgba(120,130,150,0.12); color: var(--text-dim); border: 1px solid rgba(120,130,150,0.25); }
+
+    /* ── Summary strip ───────────────────────────────────────── */
+    .summary-strip {
+      display: none;
+      grid-template-columns: repeat(4, 1fr); gap: 12px;
+      margin-bottom: 20px;
+    }
+    .summary-strip.visible { display: grid; }
+    .sum-card {
+      background: var(--glass); border: 1px solid var(--glass-border);
+      border-radius: 14px; padding: 16px 20px; text-align: center;
+      backdrop-filter: blur(12px);
+    }
+    .sum-val {
+      font-size: 28px; font-weight: 700; font-family: var(--mono);
+      color: var(--accent);
+    }
+    .sum-val.green  { color: var(--green); }
+    .sum-val.red    { color: var(--red); }
+    .sum-val.yellow { color: var(--yellow); }
+    .sum-lbl { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+
+    /* ── Export bar ──────────────────────────────────────────── */
+    .export-bar {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: rgba(5,10,26,0.85);
+      border-top: 1px solid var(--glass-border);
+      backdrop-filter: blur(20px);
+      padding: 14px 24px;
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+      z-index: 100; flex-wrap: wrap;
+    }
+    body.light .export-bar { background: rgba(200,217,240,0.88); }
+
+    /* ── History panel ───────────────────────────────────────── */
+    #history-list {
+      display: flex; flex-wrap: wrap; gap: 8px;
+    }
+    .history-chip {
+      background: rgba(168,85,247,0.1);
+      border: 1px solid rgba(168,85,247,0.25);
+      border-radius: 10px; padding: 8px 14px; font-size: 12px;
+      cursor: pointer; transition: all 0.2s;
+      color: var(--text);
+    }
+    .history-chip:hover { border-color: var(--accent2); color: var(--accent2); }
+    .history-chip .htime { font-size: 10px; color: var(--text-dim); display: block; }
+
+    /* ── Loader spinner ──────────────────────────────────────── */
+    .spinner {
+      display: inline-block; width: 18px; height: 18px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%; animation: spin 0.7s linear infinite;
+      vertical-align: middle; margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Toast ───────────────────────────────────────────────── */
+    #toast {
+      position: fixed; top: 20px; right: 20px; z-index: 999;
+      background: var(--glass); border: 1px solid var(--glass-border);
+      border-radius: 12px; padding: 12px 20px; font-size: 14px;
+      backdrop-filter: blur(16px);
+      transform: translateY(-80px) scale(0.95);
+      opacity: 0; transition: all 0.35s;
+      pointer-events: none; max-width: 340px;
+    }
+    #toast.show { transform: translateY(0) scale(1); opacity: 1; }
+    #toast.success { border-color: rgba(34,211,168,0.4); color: var(--green); }
+    #toast.error   { border-color: rgba(248,113,113,0.4); color: var(--red); }
+
+    /* ── Empty state ─────────────────────────────────────────── */
+    .empty-state {
+      text-align: center; padding: 60px 20px; color: var(--text-dim);
+    }
+    .empty-state .icon { font-size: 48px; margin-bottom: 12px; opacity: 0.4; }
+
+    /* ── Responsive ──────────────────────────────────────────── */
+    @media (max-width: 640px) {
+      .summary-strip { grid-template-columns: repeat(2,1fr); }
+      header { flex-direction: column; align-items: flex-start; gap: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="aurora">
+    <span></span><span></span><span></span>
+  </div>
+
+  <div id="toast"></div>
+
+  <div class="container">
+    <!-- Header -->
+    <header>
+      <div class="logo">
+        <div class="logo-icon">📧</div>
+        <div class="logo-text">
+          <h1>EmailVault</h1>
+          <p>Excel-based email lookup &amp; verification</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="theme-toggle" id="themeBtn" title="Toggle light/dark mode">🌙</button>
+      </div>
+    </header>
+
+    <!-- ① File Upload / Select -->
+    <div class="card">
+      <div class="section-title">① Load Excel File</div>
+
+      <!-- Existing files strip -->
+      <div id="existing-files-strip"></div>
+
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" id="fileInput" accept=".xlsx,.xls" />
+        <div class="upload-icon">📂</div>
+        <div style="font-size:16px;font-weight:600">Drag &amp; drop your Excel file here</div>
+        <div class="upload-hint">or <span>click to browse</span> — supports .xlsx / .xls</div>
+      </div>
+
+      <div id="loadedBadge" class="status-badge">
+        <div class="pulse"></div>
+        <span id="loadedLabel">Excel Loaded</span>
+      </div>
+
+      <div id="fileStats" class="file-stats">
+        <div class="stat-item">
+          <div class="val" id="statRows">—</div>
+          <div class="lbl">Total Rows</div>
+        </div>
+        <div class="stat-item">
+          <div class="val" id="statEmails">—</div>
+          <div class="lbl">Email Entries</div>
+        </div>
+        <div class="stat-item" id="statColsWrap">
+          <div class="val" id="statCols">—</div>
+          <div class="lbl">Columns</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ② Email Input -->
+    <div class="card">
+      <div class="section-title">② Paste Email Text</div>
+      <textarea id="emailInput"
+        placeholder="Paste any text containing emails here — messy logs, CSVs, tickets, whatever...&#10;&#10;Live email detection will highlight them below."></textarea>
+      <div class="input-footer">
+        <div class="email-count">Detected: <span id="detectedCount">0</span> email(s)</div>
+        <button class="btn btn-primary" id="lookupBtn" disabled>
+          🔍 Run Lookup
+        </button>
+      </div>
+      <div class="chips" id="emailChips"></div>
+    </div>
+
+    <!-- ③ Summary strip -->
+    <div class="summary-strip" id="summaryStrip">
+      <div class="sum-card">
+        <div class="sum-val" id="sumTotal">0</div>
+        <div class="sum-lbl">Total Checked</div>
+      </div>
+      <div class="sum-card">
+        <div class="sum-val green" id="sumDone">0</div>
+        <div class="sum-lbl">✅ Done</div>
+      </div>
+      <div class="sum-card">
+        <div class="sum-val red" id="sumFail">0</div>
+        <div class="sum-lbl">❌ Fail</div>
+      </div>
+      <div class="sum-card">
+        <div class="sum-val yellow" id="sumNotFound">0</div>
+        <div class="sum-lbl">⚠️ Not Found</div>
+      </div>
+    </div>
+
+    <!-- ③ Results table -->
+    <div class="card" id="resultsCard">
+      <div class="section-title">③ Results</div>
+
+      <div class="filter-bar" id="filterBar" style="display:none">
+        <span style="font-size:12px;color:var(--text-dim);margin-right:4px">Filter:</span>
+        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="done">✅ Done</button>
+        <button class="filter-btn" data-filter="fail">❌ Fail</button>
+        <button class="filter-btn" data-filter="not found">⚠️ Not Found</button>
+        <button class="filter-btn" data-filter="partial">🔶 Partial</button>
+      </div>
+
+      <div class="table-wrap">
+        <table id="resultsTable" style="display:none">
+          <thead>
+            <tr>
+              <th data-col="idx">#<span class="sort-icon">↕</span></th>
+              <th data-col="email">Email<span class="sort-icon">↕</span></th>
+              <th data-col="rowNumber">Row #<span class="sort-icon">↕</span></th>
+              <th data-col="检查结果">检查结果<span class="sort-icon">↕</span></th>
+              <th data-col="卖家">卖家<span class="sort-icon">↕</span></th>
+              <th data-col="status">Status<span class="sort-icon">↕</span></th>
+            </tr>
+          </thead>
+          <tbody id="resultsBody"></tbody>
+        </table>
+        <div class="empty-state" id="emptyState">
+          <div class="icon">🔍</div>
+          <div>Run a lookup to see results here</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ④ History -->
+    <div class="card" id="historyCard">
+      <div class="section-title">④ Recent Lookups</div>
+      <div id="history-list">
+        <span style="color:var(--text-dim);font-size:13px">No history yet. Run a lookup to populate this.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Export bar (always visible at bottom) -->
+  <div class="export-bar">
+    <span style="font-size:12px;color:var(--text-dim)">Export:</span>
+    <button class="btn btn-outline" id="exportCsvBtn">⬇️ CSV</button>
+    <button class="btn btn-outline" id="exportJsonBtn">⬇️ JSON</button>
+    <button class="btn btn-outline" id="copyClipBtn">📋 Copy (email=result)</button>
+  </div>
+
+  <script>
+  (() => {
+    'use strict';
+
+    // ── State ──────────────────────────────────────────────────
+    let currentResults = [];
+    let sortCol = 'idx';
+    let sortDir = 1; // 1=asc -1=desc
+    let activeFilter = 'all';
+    const EMAIL_RE = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g;
+    const HISTORY_KEY = 'emailvault_history';
+
+    // ── DOM refs ───────────────────────────────────────────────
+    const fileInput     = document.getElementById('fileInput');
+    const uploadZone    = document.getElementById('uploadZone');
+    const loadedBadge   = document.getElementById('loadedBadge');
+    const loadedLabel   = document.getElementById('loadedLabel');
+    const fileStats     = document.getElementById('fileStats');
+    const statRows      = document.getElementById('statRows');
+    const statEmails    = document.getElementById('statEmails');
+    const statCols      = document.getElementById('statCols');
+    const emailInput    = document.getElementById('emailInput');
+    const detectedCount = document.getElementById('detectedCount');
+    const emailChips    = document.getElementById('emailChips');
+    const lookupBtn     = document.getElementById('lookupBtn');
+    const resultsTable  = document.getElementById('resultsTable');
+    const resultsBody   = document.getElementById('resultsBody');
+    const emptyState    = document.getElementById('emptyState');
+    const summaryStrip  = document.getElementById('summaryStrip');
+    const filterBar     = document.getElementById('filterBar');
+    const themeBtn      = document.getElementById('themeBtn');
+    const toastEl       = document.getElementById('toast');
+    const existingStrip = document.getElementById('existing-files-strip');
+
+    // ── Toast ──────────────────────────────────────────────────
+    let toastTimer;
+    function showToast(msg, type = 'success') {
+      toastEl.textContent = msg;
+      toastEl.className = `show ${type}`;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { toastEl.className = ''; }, 3200);
+    }
+
+    // ── Theme toggle ───────────────────────────────────────────
+    themeBtn.addEventListener('click', () => {
+      document.body.classList.toggle('light');
+      themeBtn.textContent = document.body.classList.contains('light') ? '🌞' : '🌙';
+    });
+
+    // ── Keyboard shortcuts ─────────────────────────────────────
+    document.addEventListener('keydown', e => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        if (!lookupBtn.disabled) lookupBtn.click();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+        e.preventDefault();
+        exportCsvBtn.click();
+      }
+    });
+
+    // ── Check server status & list existing files on load ──────
+    async function initStatus() {
+      try {
+        const [statusRes, filesRes] = await Promise.all([
+          fetch('/status'),
+          fetch('/files'),
+        ]);
+        const status = await statusRes.json();
+        const files  = await filesRes.json();
+
+        if (status.loaded) {
+          showFileLoaded(status.fileName, status.totalRows, status.emailCount, status.columns);
+        }
+
+        if (files.length) {
+          existingStrip.innerHTML =
+            '<span style="font-size:12px;color:var(--text-dim);align-self:center">Existing:</span>' +
+            files.map(f =>
+              `<button class="file-chip ${status.fileName===f.name?'active':''}" data-name="${escHtml(f.name)}">
+                <span class="file-chip-icon">📄</span>${escHtml(f.name)}
+              </button>`
+            ).join('');
+          existingStrip.classList.add('visible');
+          existingStrip.querySelectorAll('.file-chip').forEach(btn => {
+            btn.addEventListener('click', () => selectExistingFile(btn.dataset.name, btn));
+          });
+        }
+      } catch (_) {}
+    }
+    initStatus();
+
+    // ── Select existing file from server ───────────────────────
+    async function selectExistingFile(fileName, chipEl) {
+      chipEl.textContent = '⏳ Loading…';
+      try {
+        const res  = await fetch('/select', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileName }),
+        });
+        const data = await res.json();
+        if (!res.ok) { showToast(data.error || 'Error', 'error'); return; }
+        showFileLoaded(data.fileName, data.totalRows, data.emailCount, data.columns);
+        existingStrip.querySelectorAll('.file-chip').forEach(b => b.classList.remove('active'));
+        chipEl.classList.add('active');
+        showToast(`Loaded "${data.fileName}" — ${data.emailCount} emails`);
+      } catch (err) {
+        showToast('Network error', 'error');
+      } finally {
+        // Restore chip label
+        initStatus();
+      }
+    }
+
+    // ── Drag-and-drop ──────────────────────────────────────────
+    uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+    uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+    uploadZone.addEventListener('drop', e => {
+      e.preventDefault(); uploadZone.classList.remove('dragover');
+      const file = e.dataTransfer.files[0];
+      if (file) uploadFile(file);
+    });
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files[0]) uploadFile(fileInput.files[0]);
+    });
+
+    // ── Upload ─────────────────────────────────────────────────
+    async function uploadFile(file) {
+      const zone = uploadZone;
+      zone.style.opacity = '0.6';
+      const fd = new FormData();
+      fd.append('file', file);
+      try {
+        const res  = await fetch('/upload', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (!res.ok) { showToast(data.error || 'Upload failed', 'error'); return; }
+        showFileLoaded(data.fileName, data.totalRows, data.emailCount, data.columns);
+        showToast(`Loaded "${data.fileName}" — ${data.emailCount} emails indexed`);
+        initStatus(); // refresh existing files list
+      } catch (err) {
+        showToast('Upload error: ' + err.message, 'error');
+      } finally {
+        zone.style.opacity = '1';
+      }
+    }
+
+    function showFileLoaded(fileName, totalRows, emailCount, columns) {
+      loadedBadge.classList.add('visible');
+      loadedLabel.textContent = `✔ Loaded: ${fileName}`;
+      statRows.textContent   = totalRows;
+      statEmails.textContent = emailCount;
+      statCols.textContent   = columns ? columns.length : '—';
+      fileStats.classList.add('visible');
+      lookupBtn.disabled = false;
+    }
+
+    // ── Live email detection ───────────────────────────────────
+    emailInput.addEventListener('input', liveDetect);
+    function liveDetect() {
+      const txt = emailInput.value;
+      const matches = txt.match(EMAIL_RE) || [];
+      // count occurrences
+      const freq = {};
+      matches.forEach(e => { freq[e.toLowerCase()] = (freq[e.toLowerCase()]||0)+1; });
+      const unique = Object.keys(freq);
+      detectedCount.textContent = unique.length;
+      emailChips.innerHTML = unique.slice(0, 80).map(e =>
+        `<span class="email-pill${freq[e]>1?' dup':''}" title="${freq[e]>1?'Duplicate':''}">
+          ${escHtml(e)}${freq[e]>1?` ×${freq[e]}`:''}
+        </span>`
+      ).join('');
+      if (unique.length > 80) {
+        emailChips.innerHTML += `<span class="email-pill" style="opacity:0.5">…+${unique.length-80} more</span>`;
+      }
+    }
+
+    // ── Lookup ─────────────────────────────────────────────────
+    lookupBtn.addEventListener('click', runLookup);
+    async function runLookup() {
+      const text = emailInput.value.trim();
+      if (!text) { showToast('Please paste some text first', 'error'); return; }
+      lookupBtn.innerHTML = '<span class="spinner"></span> Looking up…';
+      lookupBtn.disabled = true;
+      try {
+        const res  = await fetch('/lookup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text }),
+        });
+        const data = await res.json();
+        if (!res.ok) { showToast(data.error || 'Lookup failed', 'error'); return; }
+        currentResults = data.results.map((r, i) => ({ ...r, idx: i + 1 }));
+        renderResults(currentResults);
+        updateSummary(currentResults);
+        saveHistory(currentResults);
+        showToast(`Lookup complete — ${data.total} result(s)`);
+      } catch (err) {
+        showToast('Network error: ' + err.message, 'error');
+      } finally {
+        lookupBtn.innerHTML = '🔍 Run Lookup';
+        lookupBtn.disabled = false;
+      }
+    }
+
+    // ── Render results ─────────────────────────────────────────
+    function renderResults(rows) {
+      let filtered = rows;
+      if (activeFilter !== 'all') {
+        filtered = rows.filter(r => r.status === activeFilter);
+      }
+      // Sort
+      filtered = [...filtered].sort((a, b) => {
+        let va = a[sortCol] ?? '';
+        let vb = b[sortCol] ?? '';
+        if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * sortDir;
+        return String(va).localeCompare(String(vb)) * sortDir;
+      });
+
+      if (!filtered.length) {
+        resultsTable.style.display = 'none';
+        emptyState.innerHTML = '<div class="icon">🕳️</div><div>No results match the current filter.</div>';
+        return;
+      }
+
+      resultsBody.innerHTML = filtered.map((r, i) =>
+        `<tr class="result-row" style="animation-delay:${Math.min(i*30,600)}ms">
+          <td style="color:var(--text-dim)">${r.idx}</td>
+          <td>${escHtml(r.email)}${r.duplicate ? ' <span title="Duplicate in input" style="color:var(--yellow);font-size:10px">DUP</span>' : ''}</td>
+          <td style="color:var(--text-dim)">${r.rowNumber ?? '—'}</td>
+          <td>${escHtml(r['检查结果'] || '—')}</td>
+          <td>${escHtml(r['卖家'] || '—')}</td>
+          <td>${badgeHtml(r.status)}</td>
+        </tr>`
+      ).join('');
+
+      resultsTable.style.display = 'table';
+      emptyState.style.display = 'none';
+      filterBar.style.display = 'flex';
+    }
+
+    function badgeHtml(status) {
+      const map = {
+        'done':      ['badge-done',     '✅', 'Done'],
+        'fail':      ['badge-fail',     '❌', 'Fail'],
+        'partial':   ['badge-partial',  '🔶', 'Partial'],
+        'not found': ['badge-notfound', '—',  'Not Found'],
+      };
+      const [cls, icon, lbl] = map[status] || map['not found'];
+      return `<span class="badge ${cls}">${icon} ${lbl}</span>`;
+    }
+
+    // ── Summary ────────────────────────────────────────────────
+    function updateSummary(rows) {
+      summaryStrip.classList.add('visible');
+      animateCount('sumTotal',    rows.length);
+      animateCount('sumDone',     rows.filter(r => r.status === 'done').length);
+      animateCount('sumFail',     rows.filter(r => r.status === 'fail').length);
+      animateCount('sumNotFound', rows.filter(r => r.status === 'not found').length);
+    }
+
+    function animateCount(id, target) {
+      const el = document.getElementById(id);
+      const start = parseInt(el.textContent) || 0;
+      const dur = 500;
+      const t0  = performance.now();
+      const tick = (now) => {
+        const p = Math.min((now - t0) / dur, 1);
+        el.textContent = Math.round(start + (target - start) * easeOut(p));
+        if (p < 1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    }
+    function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+
+    // ── Sorting ────────────────────────────────────────────────
+    document.querySelectorAll('th[data-col]').forEach(th => {
+      th.addEventListener('click', () => {
+        const col = th.dataset.col;
+        if (sortCol === col) sortDir *= -1;
+        else { sortCol = col; sortDir = 1; }
+        document.querySelectorAll('th').forEach(t => t.classList.remove('sorted'));
+        th.classList.add('sorted');
+        th.querySelector('.sort-icon').textContent = sortDir === 1 ? '↑' : '↓';
+        renderResults(currentResults);
+      });
+    });
+
+    // ── Filtering ──────────────────────────────────────────────
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.filter-btn').forEach(b => {
+          b.classList.remove('active', 'done-active', 'fail-active');
+        });
+        activeFilter = btn.dataset.filter;
+        btn.classList.add('active');
+        if (activeFilter === 'done') btn.classList.add('done-active');
+        if (activeFilter === 'fail') btn.classList.add('fail-active');
+        renderResults(currentResults);
+      });
+    });
+
+    // ── Export CSV ─────────────────────────────────────────────
+    document.getElementById('exportCsvBtn').addEventListener('click', async () => {
+      try {
+        const res = await fetch('/export/csv');
+        if (!res.ok) { showToast('No results to export', 'error'); return; }
+        const blob = await res.blob();
+        triggerDownload(blob, 'results.csv');
+        showToast('CSV exported');
+      } catch { showToast('Export failed', 'error'); }
+    });
+
+    // ── Export JSON ────────────────────────────────────────────
+    document.getElementById('exportJsonBtn').addEventListener('click', async () => {
+      try {
+        const res = await fetch('/export/json');
+        if (!res.ok) { showToast('No results to export', 'error'); return; }
+        const blob = await res.blob();
+        triggerDownload(blob, 'results.json');
+        showToast('JSON exported');
+      } catch { showToast('Export failed', 'error'); }
+    });
+
+    // ── Copy to clipboard (email=result) ──────────────────────
+    document.getElementById('copyClipBtn').addEventListener('click', () => {
+      if (!currentResults.length) { showToast('No results to copy', 'error'); return; }
+      const text = currentResults
+        .map(r => `${r.email}=${r['检查结果'] || r.status}`)
+        .join('\n');
+      navigator.clipboard.writeText(text)
+        .then(() => showToast('Copied to clipboard'))
+        .catch(() => showToast('Clipboard access denied', 'error'));
+    });
+
+    function triggerDownload(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a   = document.createElement('a');
+      a.href = url; a.download = filename; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    // ── History ────────────────────────────────────────────────
+    function saveHistory(results) {
+      const stored = getHistory();
+      stored.unshift({
+        ts: new Date().toLocaleString(),
+        count: results.length,
+        results,
+      });
+      const trimmed = stored.slice(0, 5);
+      try { localStorage.setItem(HISTORY_KEY, JSON.stringify(trimmed)); } catch {}
+      renderHistory(trimmed);
+    }
+
+    function getHistory() {
+      try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; } catch { return []; }
+    }
+
+    function renderHistory(hist) {
+      const list = document.getElementById('history-list');
+      if (!hist.length) {
+        list.innerHTML = '<span style="color:var(--text-dim);font-size:13px">No history yet.</span>';
+        return;
+      }
+      list.innerHTML = hist.map((h, i) =>
+        `<button class="history-chip" data-idx="${i}">
+          <span>🔍 ${h.count} emails</span>
+          <span class="htime">${h.ts}</span>
+        </button>`
+      ).join('');
+      list.querySelectorAll('.history-chip').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const h = getHistory()[+btn.dataset.idx];
+          if (!h) return;
+          currentResults = h.results;
+          renderResults(currentResults);
+          updateSummary(currentResults);
+          showToast('History restored');
+        });
+      });
+    }
+
+    // Init history on page load
+    renderHistory(getHistory());
+
+    // ── XSS-safe helper ───────────────────────────────────────
+    function escHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+  })();
+  </script>
+</body>
+</html>
