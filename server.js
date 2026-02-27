@@ -4,6 +4,7 @@ const express = require('express');
 const multer = require('multer');
 const XLSX = require('xlsx');
 const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 const path = require('path');
 const fs = require('fs');
 
@@ -18,6 +19,11 @@ if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Rate limiters
+const uploadLimiter = rateLimit({ windowMs: 60_000, max: 20, standardHeaders: true, legacyHeaders: false });
+const lookupLimiter = rateLimit({ windowMs: 60_000, max: 60, standardHeaders: true, legacyHeaders: false });
+const fileLimiter   = rateLimit({ windowMs: 60_000, max: 60, standardHeaders: true, legacyHeaders: false });
 
 // Multer config — store uploaded xlsx in uploads/
 const storage = multer.diskStorage({
@@ -75,7 +81,7 @@ function parseExcel(filePath) {
 }
 
 // ─── POST /upload ─────────────────────────────────────────────────────────
-app.post('/upload', upload.single('file'), (req, res) => {
+app.post('/upload', uploadLimiter, upload.single('file'), (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
     parseExcel(req.file.path);
@@ -93,7 +99,7 @@ app.post('/upload', upload.single('file'), (req, res) => {
 });
 
 // ─── GET /status ──────────────────────────────────────────────────────────
-app.get('/status', (req, res) => {
+app.get('/status', fileLimiter, (req, res) => {
   // Also check if file1.xlsx exists on disk and auto-load if nothing is loaded
   const defaultFile = path.join(UPLOADS_DIR, 'file1.xlsx');
   if (!loadedFileName && fs.existsSync(defaultFile)) {
@@ -116,7 +122,7 @@ app.get('/status', (req, res) => {
 
 // ─── GET /files ───────────────────────────────────────────────────────────
 // List .xlsx files already present in uploads/ so the UI can offer them
-app.get('/files', (req, res) => {
+app.get('/files', fileLimiter, (req, res) => {
   try {
     const files = fs.readdirSync(UPLOADS_DIR)
       .filter(f => /\.(xlsx|xls)$/i.test(f))
@@ -132,7 +138,7 @@ app.get('/files', (req, res) => {
 
 // ─── POST /select ─────────────────────────────────────────────────────────
 // Load an already-existing file from uploads/ by name
-app.post('/select', express.json(), (req, res) => {
+app.post('/select', fileLimiter, express.json(), (req, res) => {
   const { fileName } = req.body || {};
   if (!fileName) return res.status(400).json({ error: 'fileName is required' });
 
@@ -158,7 +164,7 @@ app.post('/select', express.json(), (req, res) => {
 });
 
 // ─── POST /lookup ─────────────────────────────────────────────────────────
-app.post('/lookup', (req, res) => {
+app.post('/lookup', lookupLimiter, (req, res) => {
   if (!loadedFileName) {
     return res.status(400).json({ error: 'No Excel file loaded. Upload one first.' });
   }
