@@ -1036,7 +1036,9 @@
         fd.append('source_ref', document.getElementById('fSourceRef').value.trim());
       }
       try {
-        const res  = await fetch('/admin/files', { method:'POST', headers: authHeaders(), body: fd });
+        // Note: do NOT set Content-Type when sending FormData — the browser sets it with the correct multipart boundary.
+        const headers = authHeaders();
+        const res  = await fetch('/admin/files', { method:'POST', headers, body: fd });
         const data = await res.json();
         if (!res.ok) { showToast(data.error || 'Error', 'error'); return; }
         showToast('Source added');
@@ -1189,7 +1191,9 @@
       const np1  = document.getElementById('cpNew1').value;
       const np2  = document.getElementById('cpNew2').value;
       if (np1 !== np2) { showToast('Passwords do not match', 'error'); return; }
-      // Decode adminId from JWT token (best-effort)
+      // Decode adminId from the JWT payload for UI convenience only.
+      // The signature is NOT verified client-side; the server re-validates the
+      // adminId against the database before making any changes.
       let adminId = null;
       try {
         const tok = adminToken || localStorage.getItem(TOKEN_KEY) || '';

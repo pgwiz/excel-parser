@@ -38,6 +38,14 @@ class CacheStore {
     this._store.clear();
   }
 
+  /** Evict all expired entries — called periodically by the cleanup interval. */
+  _evictExpired() {
+    const now = Date.now();
+    for (const [fileId, entry] of this._store.entries()) {
+      if (now > entry.expiresAt) this._store.delete(fileId);
+    }
+  }
+
   /** @returns {{ fileId, rowCount, loadedAt, expiresAt }[]} */
   stats() {
     const now = Date.now();
@@ -59,3 +67,7 @@ class CacheStore {
 }
 
 module.exports = new CacheStore();
+
+// Evict expired entries every 5 minutes to prevent unbounded memory growth.
+const _cacheInstance = module.exports;
+setInterval(() => _cacheInstance._evictExpired(), 5 * 60 * 1000).unref();

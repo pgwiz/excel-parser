@@ -21,6 +21,16 @@ async function getAdminByUsername(username) {
   return data;
 }
 
+async function getAdminById(id) {
+  const { data, error } = await supabase
+    .from('admins')
+    .select('*')
+    .eq('id', id)
+    .single();
+  if (error) return null;
+  return data;
+}
+
 async function updateAdminLastLogin(id) {
   await supabase
     .from('admins')
@@ -177,6 +187,7 @@ async function setSetting(key, value, adminId) {
 module.exports = {
   supabase,
   getAdminByUsername,
+  getAdminById,
   updateAdminLastLogin,
   updateAdminPassword,
   getActiveFiles,

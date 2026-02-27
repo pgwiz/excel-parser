@@ -2,6 +2,7 @@
 
 require('dotenv').config();
 
+const crypto       = require('crypto');
 const express      = require('express');
 const multer       = require('multer');
 const cookieParser = require('cookie-parser');
@@ -47,8 +48,32 @@ const authLimiter   = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+const adminLimiter  = rateLimit({ windowMs: 60_000, max: 120, standardHeaders: true, legacyHeaders: false });
 
-// ── Multer ────────────────────────────────────────────────────────────────────
+// ── CSRF protection ───────────────────────────────────────────────────────────
+// State-changing requests authenticated via httpOnly cookie must pass an origin
+// check.  Requests carrying an Authorization header (Bearer token) are exempt
+// because browsers cannot set custom headers in cross-origin requests without
+// a CORS preflight — making them inherently CSRF-safe.
+function csrfProtect(req, res, next) {
+  const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+  if (SAFE_METHODS.has(req.method)) return next();
+  if (req.headers.authorization) return next(); // Bearer token — CSRF-safe
+  const origin = req.headers.origin;
+  if (!origin) return next(); // same-origin or non-browser client
+  try {
+    const originHost = new URL(origin).host;
+    if (originHost === req.headers.host) return next();
+  } catch (_) {}
+  return res.status(403).json({ error: 'CSRF check failed' });
+}
+
+// Apply admin rate limiter + CSRF protection to all /admin/* and auth sub-routes
+app.use('/admin', adminLimiter, csrfProtect);
+app.use('/auth/logout', adminLimiter, csrfProtect);
+app.use('/auth/change-password', authLimiter, csrfProtect);
+
+
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOADS_DIR),
@@ -71,7 +96,8 @@ async function getEmailMap(file) {
     map = await readSheetData(file);
     cache.set(file.id, map, file.cache_ttl_secs || 300);
     if (file.id !== LEGACY_ID) {
-      db.updateFile(file.id, { total_rows: map.size, last_refreshed: new Date().toISOString() }).catch(() => {});
+      db.updateFile(file.id, { total_rows: map.size, last_refreshed: new Date().toISOString() })
+        .catch(err => console.error('Failed to update file metadata:', err));
     }
   }
   return map;
@@ -203,12 +229,18 @@ app.post('/auth/login', authLimiter, async (req, res) => {
 
   if (!username || !password) return res.status(400).json({ error: 'username and password are required' });
 
-  // Magic key
-  if (process.env.MAGIC_KEY && password === process.env.MAGIC_KEY) {
-    const token = signToken({ isMagicKey: true, username });
-    res.cookie('token', token, { httpOnly: true, sameSite: 'strict', secure: process.env.NODE_ENV === 'production' });
-    db.logAudit(null, 'magic_key_used', { username }, ip).catch(() => {});
-    return res.json({ success: true, isMagicKey: true, token });
+  // Magic key — use timing-safe comparison to prevent timing attacks
+  if (process.env.MAGIC_KEY) {
+    const a = Buffer.from(password);
+    const b = Buffer.from(process.env.MAGIC_KEY);
+    const match = a.length === b.length && crypto.timingSafeEqual(a, b);
+    if (match) {
+      const token = signToken({ isMagicKey: true, username });
+      res.cookie('token', token, { httpOnly: true, sameSite: 'strict', secure: process.env.NODE_ENV === 'production' });
+      db.logAudit(null, 'magic_key_used', { username }, ip)
+        .catch(err => console.error('Failed to log magic key usage:', err));
+      return res.json({ success: true, isMagicKey: true, token });
+    }
   }
 
   const admin = await db.getAdminByUsername(username);
@@ -228,7 +260,7 @@ app.post('/auth/login', authLimiter, async (req, res) => {
 });
 
 // POST /auth/logout
-app.post('/auth/logout', requireAdmin, async (req, res) => {
+app.post('/auth/logout', adminLimiter, requireAdmin, async (req, res) => {
   db.logAudit(req.admin.adminId || null, 'logout', { username: req.admin.username }, clientIp(req)).catch(() => {});
   res.clearCookie('token');
   res.json({ success: true });
@@ -240,8 +272,8 @@ app.post('/auth/change-password', async (req, res) => {
   if (!adminId || !newPassword) return res.status(400).json({ error: 'adminId and newPassword are required' });
   if (newPassword.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
 
-  const { data: adminRow, error } = await db.supabase.from('admins').select('*').eq('id', adminId).single();
-  if (error || !adminRow) return res.status(404).json({ error: 'Admin not found' });
+  const adminRow = await db.getAdminById(adminId);
+  if (!adminRow) return res.status(404).json({ error: 'Admin not found' });
 
   if (currentPassword) {
     const valid = await bcrypt.compare(currentPassword, adminRow.password_hash);

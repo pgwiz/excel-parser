@@ -74,8 +74,14 @@ INSERT INTO pars.settings (key, value) VALUES
 ON CONFLICT (key) DO NOTHING;
 
 -- ── Row Level Security ───────────────────────────────────────────────────────
--- All access goes through the Express backend using the service_role key,
--- so we simply deny all direct client access.
+-- RLS is enabled on all tables.  All data access goes through the Express
+-- backend using the Supabase service_role key, which bypasses RLS by default.
+-- No direct client access is permitted.
+--
+-- If you need to grant read access via the anon / authenticated roles in the
+-- future, add explicit policies here, e.g.:
+--   CREATE POLICY "service_role_only" ON pars.admins
+--     USING (auth.role() = 'service_role');
 
 ALTER TABLE pars.admins          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pars.files           ENABLE ROW LEVEL SECURITY;

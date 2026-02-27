@@ -24,7 +24,7 @@ function getGoogleAuth() {
   if (_googleAuth) return _googleAuth;
   const credsPath = process.env.GOOGLE_CREDS_PATH || path.join(__dirname, 'credentials.json');
   if (!fs.existsSync(credsPath)) {
-    throw new Error('Google credentials file not found: ' + credsPath);
+    throw new Error('Google credentials file not found. Please configure GOOGLE_CREDS_PATH in your environment.');
   }
   const creds = JSON.parse(fs.readFileSync(credsPath, 'utf8'));
   _googleAuth = new google.auth.GoogleAuth({
