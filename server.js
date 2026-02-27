@@ -20,6 +20,18 @@ const { readSheetData, previewColumns } = require('./google');
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust the first proxy hop so express-rate-limit can resolve real client IPs
+// from X-Forwarded-For (required on Vercel, Heroku, nginx, etc.).
+// Override by setting TRUST_PROXY env var (a hop count, named preset like
+// 'loopback', a comma-separated IP list, or 'false' to disable).
+const _rawTrustProxy = process.env.TRUST_PROXY;
+app.set(
+  'trust proxy',
+  _rawTrustProxy === 'false' ? false
+    : _rawTrustProxy          ? (Number.isFinite(Number(_rawTrustProxy)) ? Number(_rawTrustProxy) : _rawTrustProxy)
+    : 1
+);
+
 // Ensure uploads directory exists
 const UPLOADS_DIR = process.env.VERCEL
   ? '/tmp/uploads'
