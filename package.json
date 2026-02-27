@@ -1,17 +1,24 @@
 {
   "name": "emailvault",
-  "version": "1.0.0",
-  "description": "EmailVault Lookup Tool — parse Excel files and look up email check results",
+  "version": "2.0.0",
+  "description": "EmailVault Pro — email lookup tool backed by Supabase and Google Sheets/Drive",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "seed": "node scripts/seed.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.98.0",
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
     "exceljs": "^4.4.0",
     "express": "^4.18.2",
     "express-rate-limit": "^7.5.0",
+    "googleapis": "^171.4.0",
+    "jsonwebtoken": "^9.0.3",
     "multer": "^2.0.2"
   }
 }

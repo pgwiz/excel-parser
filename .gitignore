@@ -3,3 +3,7 @@ package-lock.json
 uploads/*.xlsx
 uploads/*.xls
 sessions.json
+.env
+credentials.json
+exports/*
+!exports/.gitkeep
