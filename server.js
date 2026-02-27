@@ -125,7 +125,7 @@ async function getEmailMap(file) {
 }
 
 function classifyResult(result) {
-  if (!result) return 'partial';
+  if (!result || !result.trim()) return 'partial';
   if (/done|ok|success|通过|有效/i.test(result)) return 'done';
   return result.trim().toLowerCase();
 }

@@ -140,6 +140,19 @@
     .sum-val.green{color:var(--green)} .sum-val.red{color:var(--red)} .sum-val.yellow{color:var(--yellow)}
     .sum-lbl { font-size:12px;color:var(--text-dim);margin-top:4px; }
 
+    /* Overview card */
+    #overviewCard { display:none; }
+    #overviewCard.visible { display:block; }
+    .ov-filters { display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px; }
+    .ov-input { flex:1;min-width:160px;background:rgba(0,0,0,0.25);border:1px solid var(--glass-border);border-radius:10px;padding:8px 14px;color:var(--text);font-size:13px;outline:none;transition:border-color 0.2s; }
+    .ov-input:focus { border-color:var(--accent); }
+    .ov-select { flex:1;min-width:140px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:10px;padding:8px 14px;color:var(--text);font-size:13px;outline:none;appearance:none;cursor:pointer; }
+    .ov-chips { display:flex;gap:8px;flex-wrap:wrap; }
+    .ov-chip { display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid transparent;transition:all 0.2s;background:var(--glass); }
+    .ov-chip:hover { filter:brightness(1.2); }
+    .ov-chip.active { box-shadow:0 0 0 2px var(--accent); }
+    .ov-chip-count { font-family:var(--mono);font-size:11px;opacity:0.8; }
+
     /* Export bar */
     .export-bar { position:fixed;bottom:0;left:0;right:0;background:rgba(5,10,26,0.85);border-top:1px solid var(--glass-border);backdrop-filter:blur(20px);padding:14px 24px;display:flex;align-items:center;justify-content:center;gap:12px;z-index:100;flex-wrap:wrap; }
     body.light .export-bar { background:rgba(200,217,240,0.88); }
@@ -349,6 +362,21 @@
           <div>Run a lookup to see results here</div>
         </div>
       </div>
+    </div>
+
+    <!-- ⑤ Overview & Filters -->
+    <div class="card" id="overviewCard">
+      <div class="section-title">⑤ Overview &amp; Filters</div>
+      <!-- Search + domain inputs -->
+      <div class="ov-filters">
+        <input class="ov-input" id="ovSearch" placeholder="🔍 Search email or result…" />
+        <select class="ov-select" id="ovDomain">
+          <option value="">🌐 All domains</option>
+        </select>
+        <button class="btn btn-outline btn-sm" id="ovClearBtn">✕ Clear</button>
+      </div>
+      <!-- Dynamic status-breakdown chips -->
+      <div class="ov-chips" id="ovChips"></div>
     </div>
 
     <!-- ④ History -->
@@ -605,6 +633,8 @@
     let currentResults = [];
     let sortCol = 'idx', sortDir = 1;
     let activeFilter = 'all';
+    let searchText   = '';
+    let domainFilter = '';
     let selectedFileId = null;   // null = legacy mode, UUID = Supabase file
     let adminToken = null;
     const EMAIL_RE = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g;
@@ -819,6 +849,7 @@
         currentResults = data.results.map((r,i) => ({...r, idx:i+1}));
         renderResults(currentResults);
         updateSummary(currentResults);
+        renderOverview(currentResults);
         saveHistory(currentResults);
         showToast('Lookup complete — ' + data.total + ' result(s)');
       } catch (err) {
@@ -832,6 +863,8 @@
     // ── Render results ─────────────────────────────────────────
     function renderResults(rows) {
       let filtered = activeFilter === 'all' ? rows : rows.filter(r => r.status === activeFilter);
+      if (searchText)   filtered = filtered.filter(r => (r.email||'').toLowerCase().includes(searchText) || (r.result||'').toLowerCase().includes(searchText));
+      if (domainFilter) filtered = filtered.filter(r => r.email.split('@')[1] === domainFilter);
       filtered = [...filtered].sort((a,b) => {
         let va = a[sortCol] ?? '', vb = b[sortCol] ?? '';
         if (typeof va === 'number' && typeof vb === 'number') return (va-vb)*sortDir;
@@ -877,6 +910,66 @@
       requestAnimationFrame(tick);
     }
     function easeOut(t) { return 1-Math.pow(1-t,3); }
+
+    // ── Overview card ─────────────────────────────────────────────
+    const overviewCard = document.getElementById('overviewCard');
+    const ovSearch     = document.getElementById('ovSearch');
+    const ovDomain     = document.getElementById('ovDomain');
+    const ovChips      = document.getElementById('ovChips');
+
+    function renderOverview(rows) {
+      if (!rows.length) { overviewCard.classList.remove('visible'); return; }
+      overviewCard.classList.add('visible');
+
+      // Build domain options
+      const domains = [...new Set(rows.map(r => (typeof r.email === 'string' ? r.email.split('@')[1] : null)).filter(Boolean))].sort();
+      ovDomain.innerHTML = '<option value="">🌐 All domains</option>' +
+        domains.map(d => `<option value="${escHtml(d)}"${domainFilter===d?' selected':''}>${escHtml(d)}</option>`).join('');
+
+      // Build status chips
+      const counts = {};
+      rows.forEach(r => { counts[r.status] = (counts[r.status] || 0) + 1; });
+      const CHIP_COLORS = { done:'rgba(34,211,168,0.15);color:var(--green);border-color:rgba(34,211,168,0.35)', fail:'rgba(248,113,113,0.15);color:var(--red);border-color:rgba(248,113,113,0.35)', partial:'rgba(251,191,36,0.12);color:var(--yellow);border-color:rgba(251,191,36,0.35)', 'not found':'rgba(120,130,150,0.12);color:var(--text-dim);border-color:rgba(120,130,150,0.25)' };
+      ovChips.innerHTML = Object.entries(counts)
+        .sort((a,b) => b[1]-a[1])
+        .map(([s,c]) => {
+          const style = CHIP_COLORS[s] || 'rgba(99,102,241,0.12);color:var(--accent3);border-color:rgba(99,102,241,0.3)';
+          const [bg,...rest] = style.split(';');
+          const isActive = activeFilter === s;
+          return `<span class="ov-chip${isActive?' active':''}" data-status="${escHtml(s)}" style="background:${bg};${rest.join(';')}">${escHtml(s)} <span class="ov-chip-count">${c}</span></span>`;
+        }).join('');
+
+      ovChips.querySelectorAll('.ov-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          const s = chip.dataset.status;
+          activeFilter = activeFilter === s ? 'all' : s;
+          // sync the filter-bar buttons
+          document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+          const matchBtn = [...document.querySelectorAll('.filter-btn')].find(b => b.dataset.filter === activeFilter);
+          if (matchBtn) matchBtn.classList.add('active');
+          renderResults(currentResults);
+          renderOverview(currentResults);
+        });
+      });
+    }
+
+    ovSearch.addEventListener('input', () => {
+      searchText = ovSearch.value.trim().toLowerCase();
+      renderResults(currentResults);
+    });
+    ovDomain.addEventListener('change', () => {
+      domainFilter = ovDomain.value;
+      renderResults(currentResults);
+    });
+    document.getElementById('ovClearBtn').addEventListener('click', () => {
+      searchText = ''; domainFilter = ''; activeFilter = 'all';
+      ovSearch.value = ''; ovDomain.value = '';
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      const allBtn = document.querySelector('.filter-btn[data-filter="all"]');
+      if (allBtn) allBtn.classList.add('active');
+      renderResults(currentResults);
+      renderOverview(currentResults);
+    });
 
     // Sorting
     document.querySelectorAll('th[data-col]').forEach(th => {
@@ -978,6 +1071,7 @@
           currentResults = h.results;
           renderResults(currentResults);
           updateSummary(currentResults);
+          renderOverview(currentResults);
           showToast('History restored');
         });
       });
@@ -1266,7 +1360,7 @@
                 <div style="flex:1;min-width:130px"><label style="font-size:11px;color:var(--text-dim)">Label</label><input id="eLabel" value="${escHtml(btn.dataset.label)}" /></div>
                 <div style="flex:1;min-width:110px"><label style="font-size:11px;color:var(--text-dim)">Email Column</label><input id="eEmail" value="${escHtml(btn.dataset.email)}" /></div>
                 <div style="flex:1;min-width:110px"><label style="font-size:11px;color:var(--text-dim)">Result Column</label><input id="eResult" value="${escHtml(btn.dataset.result)}" /></div>
-                <div style="flex:0 0 90px"><label style="font-size:11px;color:var(--text-dim)">Cache TTL (s)</label><input id="eTtl" type="number" min="30" value="${escHtml(btn.dataset.ttl)}" /></div>
+                <div style="flex:0 0 90px"><label style="font-size:11px;color:var(--text-dim)">Cache TTL (s)</label><input id="eTtl" type="number" min="30" value="${Number(btn.dataset.ttl)||300}" /></div>
                 <button class="btn btn-primary btn-sm" id="eSaveBtn" data-id="${escHtml(btn.dataset.id)}">Save</button>
                 <button class="btn btn-outline btn-sm" id="eCancelBtn">Cancel</button>
               </div>
@@ -1275,11 +1369,13 @@
             editRow.querySelector('#eCancelBtn').addEventListener('click', () => editRow.remove());
             editRow.querySelector('#eSaveBtn').addEventListener('click', async () => {
               const id = editRow.querySelector('#eSaveBtn').dataset.id;
+              const ttl = parseInt(editRow.querySelector('#eTtl').value, 10);
+              if (!ttl || ttl < 30) { showToast('Cache TTL must be at least 30 seconds', 'error'); return; }
               const payload = {
                 label:          editRow.querySelector('#eLabel').value.trim(),
                 column_email:   editRow.querySelector('#eEmail').value.trim(),
                 column_result:  editRow.querySelector('#eResult').value.trim(),
-                cache_ttl_secs: parseInt(editRow.querySelector('#eTtl').value, 10),
+                cache_ttl_secs: ttl,
               };
               const r = await fetch('/admin/files/' + id, { method:'PATCH', headers:{...authHeaders(),'Content-Type':'application/json'}, body:JSON.stringify(payload) });
               if (r.ok) { showToast('Saved'); loadAdminFiles(); loadPublicFiles(); }
