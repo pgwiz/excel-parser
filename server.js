@@ -2,7 +2,7 @@
 
 const express = require('express');
 const multer = require('multer');
-const XLSX = require('xlsx');
+const ExcelJS = require('exceljs');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
@@ -12,7 +12,10 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Ensure uploads directory exists
-const UPLOADS_DIR = path.join(__dirname, 'uploads');
+// On Vercel the repo filesystem is read-only; use /tmp instead
+const UPLOADS_DIR = process.env.VERCEL
+  ? '/tmp/uploads'
+  : path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
 // Middleware
@@ -48,44 +51,53 @@ let lastResults = [];            // last lookup results (for export)
 let sessions = [];               // session log
 
 // ─── Helper: parse Excel file and build emailMap ────────────────────────────
-function parseExcel(filePath) {
-  const workbook = XLSX.readFile(filePath);
-  const sheetName = workbook.SheetNames[0];
-  const sheet = workbook.Sheets[sheetName];
-  const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+async function parseExcel(filePath) {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(filePath);
 
-  if (!rows.length) throw new Error('Excel file is empty');
+  const sheet = workbook.worksheets[0];
+  if (!sheet || sheet.rowCount < 1) throw new Error('Excel file is empty');
 
-  columnHeaders = Object.keys(rows[0]);
+  // Read header row (row 1); cell columns are 1-based in exceljs
+  const headerRow = sheet.getRow(1);
+  const headers = {};
+  headerRow.eachCell((cell, colNum) => {
+    headers[colNum] = String(cell.value ?? '').trim();
+  });
 
-  // Auto-detect column names (case-insensitive partial match)
-  const headerKeys = columnHeaders;
-  const emailCol = headerKeys.find(k => /邮箱|email/i.test(k));
-  const resultCol = headerKeys.find(k => /检查结果|result/i.test(k));
-  const sellerCol = headerKeys.find(k => /卖家|seller/i.test(k));
+  columnHeaders = Object.values(headers);
 
-  if (!emailCol) throw new Error('Could not find email column (邮箱 or email)');
+  // Auto-detect column numbers by name (case-insensitive)
+  const emailColNum  = Number(Object.keys(headers).find(c => /邮箱|email/i.test(headers[c])));
+  const resultColNum = Number(Object.keys(headers).find(c => /检查结果|result/i.test(headers[c])));
+  const sellerColNum = Number(Object.keys(headers).find(c => /卖家|seller/i.test(headers[c])));
+
+  if (!emailColNum) throw new Error('Could not find email column (邮箱 or email)');
 
   emailMap = new Map();
-  rows.forEach((row, idx) => {
-    const rawEmail = String(row[emailCol] || '').trim();
+  let rowCount = 0;
+
+  sheet.eachRow((row, rowNum) => {
+    if (rowNum === 1) return; // skip header
+    rowCount++;
+    const rawEmail = String(row.getCell(emailColNum).value ?? '').trim();
     if (!rawEmail) return;
     emailMap.set(rawEmail.toLowerCase(), {
-      rowNumber: idx + 2, // 1-indexed, +1 for header row
-      检查结果: resultCol ? String(row[resultCol] || '').trim() : '',
-      卖家: sellerCol ? String(row[sellerCol] || '').trim() : '',
+      rowNumber: rowNum,
+      检查结果: resultColNum ? String(row.getCell(resultColNum).value ?? '').trim() : '',
+      卖家:     sellerColNum ? String(row.getCell(sellerColNum).value ?? '').trim() : '',
     });
   });
 
-  totalRows = rows.length;
+  totalRows = rowCount;
 }
 
 // ─── POST /upload ─────────────────────────────────────────────────────────
-app.post('/upload', uploadLimiter, upload.single('file'), (req, res) => {
+app.post('/upload', uploadLimiter, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-    parseExcel(req.file.path);
-    loadedFileName = req.file.originalname;
+    await parseExcel(req.file.path);
+    loadedFileName = path.basename(req.file.originalname);
     res.json({
       success: true,
       fileName: loadedFileName,
@@ -99,12 +111,12 @@ app.post('/upload', uploadLimiter, upload.single('file'), (req, res) => {
 });
 
 // ─── GET /status ──────────────────────────────────────────────────────────
-app.get('/status', fileLimiter, (req, res) => {
+app.get('/status', fileLimiter, async (req, res) => {
   // Also check if file1.xlsx exists on disk and auto-load if nothing is loaded
   const defaultFile = path.join(UPLOADS_DIR, 'file1.xlsx');
   if (!loadedFileName && fs.existsSync(defaultFile)) {
     try {
-      parseExcel(defaultFile);
+      await parseExcel(defaultFile);
       loadedFileName = 'file1.xlsx';
     } catch (_) {
       // silently ignore if default file is unreadable
@@ -138,7 +150,7 @@ app.get('/files', fileLimiter, (req, res) => {
 
 // ─── POST /select ─────────────────────────────────────────────────────────
 // Load an already-existing file from uploads/ by name
-app.post('/select', fileLimiter, express.json(), (req, res) => {
+app.post('/select', fileLimiter, express.json(), async (req, res) => {
   const { fileName } = req.body || {};
   if (!fileName) return res.status(400).json({ error: 'fileName is required' });
 
@@ -149,7 +161,7 @@ app.post('/select', fileLimiter, express.json(), (req, res) => {
     return res.status(404).json({ error: `File "${safeName}" not found in uploads/` });
   }
   try {
-    parseExcel(filePath);
+    await parseExcel(filePath);
     loadedFileName = safeName;
     res.json({
       success: true,
@@ -222,11 +234,11 @@ app.post('/lookup', lookupLimiter, (req, res) => {
   });
 
   // Persist sessions log
+  const sessionsFile = process.env.VERCEL
+    ? '/tmp/sessions.json'
+    : path.join(__dirname, 'sessions.json');
   try {
-    fs.writeFileSync(
-      path.join(__dirname, 'sessions.json'),
-      JSON.stringify(sessions, null, 2)
-    );
+    fs.writeFileSync(sessionsFile, JSON.stringify(sessions, null, 2));
   } catch (_) {}
 
   res.json({ results, total: results.length });
