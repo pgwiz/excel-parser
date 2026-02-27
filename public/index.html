@@ -3,452 +3,272 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EmailVault — Lookup Tool</title>
+  <title>EmailVault Pro</title>
   <style>
-    /* ── Reset & base ───────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --bg: #050a1a;
-      --bg2: #0b1230;
-      --glass: rgba(13,20,50,0.55);
-      --glass-border: rgba(100,180,255,0.18);
-      --accent: #00d4ff;
-      --accent2: #a855f7;
-      --green: #22d3a8;
-      --red: #f87171;
-      --yellow: #fbbf24;
-      --text: #e2eaf5;
-      --text-dim: #7090b8;
+      --bg: #050a1a; --bg2: #0b1230;
+      --glass: rgba(13,20,50,0.55); --glass-border: rgba(100,180,255,0.18);
+      --accent: #00d4ff; --accent2: #a855f7; --accent3: #6366f1;
+      --green: #22d3a8; --red: #f87171; --yellow: #fbbf24;
+      --text: #e2eaf5; --text-dim: #7090b8;
       --font: 'Segoe UI', system-ui, sans-serif;
       --mono: 'Cascadia Code', 'Fira Mono', monospace;
     }
     body.light {
-      --bg: #dde8f7;
-      --bg2: #c8d9f0;
-      --glass: rgba(255,255,255,0.55);
-      --glass-border: rgba(60,120,220,0.25);
-      --text: #1a2740;
-      --text-dim: #4a6080;
+      --bg: #dde8f7; --bg2: #c8d9f0;
+      --glass: rgba(255,255,255,0.55); --glass-border: rgba(60,120,220,0.25);
+      --text: #1a2740; --text-dim: #4a6080;
     }
-
     html { height: 100%; }
-    body {
-      min-height: 100vh;
-      background: var(--bg);
-      color: var(--text);
-      font-family: var(--font);
-      overflow-x: hidden;
-      transition: background 0.4s, color 0.4s;
-    }
+    body { min-height: 100vh; background: var(--bg); color: var(--text); font-family: var(--font); overflow-x: hidden; transition: background 0.4s, color 0.4s; }
 
-    /* ── Aurora blobs ────────────────────────────────────────── */
-    .aurora {
-      position: fixed; inset: 0; z-index: 0; pointer-events: none;
-      overflow: hidden;
-    }
-    .aurora span {
-      position: absolute;
-      border-radius: 50%;
-      filter: blur(80px);
-      opacity: 0.25;
-      animation: drift 18s ease-in-out infinite alternate;
-    }
-    .aurora span:nth-child(1) {
-      width: 600px; height: 600px;
-      background: radial-gradient(circle, #00d4ff55, transparent);
-      top: -200px; left: -150px;
-      animation-duration: 20s;
-    }
-    .aurora span:nth-child(2) {
-      width: 500px; height: 500px;
-      background: radial-gradient(circle, #a855f755, transparent);
-      bottom: -150px; right: -100px;
-      animation-duration: 24s; animation-delay: -6s;
-    }
-    .aurora span:nth-child(3) {
-      width: 400px; height: 400px;
-      background: radial-gradient(circle, #22d3a844, transparent);
-      top: 40%; left: 50%;
-      animation-duration: 28s; animation-delay: -12s;
-    }
-    @keyframes drift {
-      0%   { transform: translate(0,0) scale(1); }
-      50%  { transform: translate(60px,-40px) scale(1.1); }
-      100% { transform: translate(-30px,60px) scale(0.95); }
-    }
+    /* Aurora */
+    .aurora { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+    .aurora span { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.25; animation: drift 18s ease-in-out infinite alternate; }
+    .aurora span:nth-child(1) { width:600px;height:600px;background:radial-gradient(circle,#00d4ff55,transparent);top:-200px;left:-150px;animation-duration:20s; }
+    .aurora span:nth-child(2) { width:500px;height:500px;background:radial-gradient(circle,#a855f755,transparent);bottom:-150px;right:-100px;animation-duration:24s;animation-delay:-6s; }
+    .aurora span:nth-child(3) { width:400px;height:400px;background:radial-gradient(circle,#22d3a844,transparent);top:40%;left:50%;animation-duration:28s;animation-delay:-12s; }
+    @keyframes drift { 0%{transform:translate(0,0) scale(1)} 50%{transform:translate(60px,-40px) scale(1.1)} 100%{transform:translate(-30px,60px) scale(0.95)} }
 
-    /* ── Layout ──────────────────────────────────────────────── */
-    .container {
-      position: relative; z-index: 1;
-      max-width: 1100px; margin: 0 auto;
-      padding: 24px 16px 120px;
-    }
+    /* Layout */
+    .container { position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:24px 16px 120px; }
 
-    /* ── Glass card ──────────────────────────────────────────── */
-    .card {
-      background: var(--glass);
-      border: 1px solid var(--glass-border);
-      border-radius: 18px;
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
-      padding: 28px;
-      margin-bottom: 20px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.35);
-      transition: background 0.4s, border-color 0.4s;
-    }
+    /* Glass card */
+    .card { background:var(--glass);border:1px solid var(--glass-border);border-radius:18px;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);padding:28px;margin-bottom:20px;box-shadow:0 8px 32px rgba(0,0,0,0.35);transition:background 0.4s,border-color 0.4s; }
 
-    /* ── Header ──────────────────────────────────────────────── */
-    header {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 20px 0 28px;
-    }
-    .logo { display: flex; align-items: center; gap: 12px; }
-    .logo-icon {
-      width: 44px; height: 44px; border-radius: 12px;
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
-      display: flex; align-items: center; justify-content: center;
-      font-size: 22px;
-    }
-    .logo-text h1 {
-      font-size: 22px; font-weight: 700; letter-spacing: -0.5px;
-      background: linear-gradient(90deg, var(--accent), var(--accent2));
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    }
-    .logo-text p { font-size: 12px; color: var(--text-dim); }
+    /* Header */
+    header { display:flex;align-items:center;justify-content:space-between;padding:20px 0 28px; }
+    .logo { display:flex;align-items:center;gap:12px; }
+    .logo-icon { width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:22px; }
+    .logo-text h1 { font-size:22px;font-weight:700;letter-spacing:-0.5px;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent; }
+    .logo-text p { font-size:12px;color:var(--text-dim); }
+    .header-actions { display:flex;gap:10px;align-items:center; }
+    .theme-toggle { background:var(--glass);border:1px solid var(--glass-border);color:var(--text);border-radius:50%;width:38px;height:38px;cursor:pointer;font-size:17px;display:flex;align-items:center;justify-content:center;transition:background 0.3s; }
+    .theme-toggle:hover { background:rgba(0,212,255,0.12); }
+    .admin-btn { background:var(--glass);border:1px solid var(--glass-border);color:var(--text-dim);border-radius:8px;padding:6px 12px;cursor:pointer;font-size:13px;transition:all 0.25s;display:flex;align-items:center;gap:6px; }
+    .admin-btn:hover { border-color:var(--accent);color:var(--accent); }
+    .magic-badge { background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.4);border-radius:20px;padding:4px 12px;font-size:12px;color:var(--accent3);display:none;align-items:center;gap:5px; }
+    .magic-badge.visible { display:flex; }
 
-    .header-actions { display: flex; gap: 10px; align-items: center; }
-    .theme-toggle {
-      background: var(--glass); border: 1px solid var(--glass-border);
-      color: var(--text); border-radius: 50%; width: 38px; height: 38px;
-      cursor: pointer; font-size: 17px; display: flex; align-items: center;
-      justify-content: center; transition: background 0.3s;
-    }
-    .theme-toggle:hover { background: rgba(0,212,255,0.12); }
+    /* Section title */
+    .section-title { font-size:13px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);margin-bottom:16px;display:flex;align-items:center;gap:8px; }
+    .section-title::after { content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--glass-border),transparent); }
 
-    /* ── Section title ───────────────────────────────────────── */
-    .section-title {
-      font-size: 13px; font-weight: 600; letter-spacing: 1.5px;
-      text-transform: uppercase; color: var(--accent);
-      margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
-    }
-    .section-title::after {
-      content: ''; flex: 1; height: 1px;
-      background: linear-gradient(90deg, var(--glass-border), transparent);
-    }
+    /* File selector */
+    #public-files-strip { display:none;gap:8px;flex-wrap:wrap;margin-bottom:14px; }
+    #public-files-strip.visible { display:flex; }
+    #existing-files-strip { display:none;gap:8px;flex-wrap:wrap;margin-bottom:14px; }
+    #existing-files-strip.visible { display:flex; }
+    .file-chip { background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.25);border-radius:8px;padding:6px 14px;font-size:12px;color:var(--text);cursor:pointer;transition:background 0.2s,border-color 0.2s;display:flex;align-items:center;gap:6px; }
+    .file-chip:hover,.file-chip.active { background:rgba(0,212,255,0.18);border-color:var(--accent); }
 
-    /* ── File selector strip ─────────────────────────────────── */
-    #existing-files-strip {
-      display: none;
-      gap: 8px; flex-wrap: wrap; margin-bottom: 14px;
-    }
-    #existing-files-strip.visible { display: flex; }
-    .file-chip {
-      background: rgba(0,212,255,0.08);
-      border: 1px solid rgba(0,212,255,0.25);
-      border-radius: 8px; padding: 6px 14px;
-      font-size: 12px; color: var(--text); cursor: pointer;
-      transition: background 0.2s, border-color 0.2s;
-      display: flex; align-items: center; gap: 6px;
-    }
-    .file-chip:hover, .file-chip.active {
-      background: rgba(0,212,255,0.18); border-color: var(--accent);
-    }
-    .file-chip-icon { font-size: 14px; }
+    /* Upload zone */
+    .upload-zone { border:2px dashed var(--glass-border);border-radius:14px;padding:40px 20px;text-align:center;cursor:pointer;transition:border-color 0.3s,background 0.3s;position:relative;overflow:hidden; }
+    .upload-zone.dragover,.upload-zone:hover { border-color:var(--accent);background:rgba(0,212,255,0.05); }
+    .upload-zone input[type=file] { position:absolute;inset:0;opacity:0;cursor:pointer; }
+    .upload-icon { font-size:40px;margin-bottom:10px; }
+    .upload-hint { color:var(--text-dim);font-size:14px;margin-top:6px; }
+    .upload-hint span { color:var(--accent);font-weight:600; }
 
-    /* ── Upload zone ─────────────────────────────────────────── */
-    .upload-zone {
-      border: 2px dashed var(--glass-border);
-      border-radius: 14px; padding: 40px 20px;
-      text-align: center; cursor: pointer;
-      transition: border-color 0.3s, background 0.3s;
-      position: relative; overflow: hidden;
-    }
-    .upload-zone.dragover, .upload-zone:hover {
-      border-color: var(--accent);
-      background: rgba(0,212,255,0.05);
-    }
-    @keyframes dash-anim {
-      to { stroke-dashoffset: -30; }
-    }
-    .upload-zone input[type=file] {
-      position: absolute; inset: 0; opacity: 0; cursor: pointer;
-    }
-    .upload-icon { font-size: 40px; margin-bottom: 10px; }
-    .upload-hint { color: var(--text-dim); font-size: 14px; margin-top: 6px; }
-    .upload-hint span { color: var(--accent); font-weight: 600; }
+    /* Status badge */
+    .status-badge { display:none;align-items:center;gap:8px;background:rgba(34,211,168,0.1);border:1px solid rgba(34,211,168,0.3);border-radius:30px;padding:6px 16px;font-size:13px;color:var(--green);margin-top:16px; }
+    .status-badge.visible { display:inline-flex; }
+    .pulse { width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse-anim 1.6s ease-in-out infinite; }
+    @keyframes pulse-anim { 0%,100%{box-shadow:0 0 0 0 rgba(34,211,168,0.6)} 50%{box-shadow:0 0 0 6px rgba(34,211,168,0)} }
+    .file-stats { display:none;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-top:14px; }
+    .file-stats.visible { display:grid; }
+    .stat-item { background:rgba(0,0,0,0.2);border-radius:10px;padding:10px 14px;text-align:center; }
+    .stat-item .val { font-size:20px;font-weight:700;font-family:var(--mono);color:var(--accent); }
+    .stat-item .lbl { font-size:11px;color:var(--text-dim);margin-top:2px; }
 
-    /* ── Status badge ────────────────────────────────────────── */
-    .status-badge {
-      display: inline-flex; align-items: center; gap: 8px;
-      background: rgba(34,211,168,0.1);
-      border: 1px solid rgba(34,211,168,0.3);
-      border-radius: 30px; padding: 6px 16px;
-      font-size: 13px; color: var(--green);
-      margin-top: 16px; display: none;
-    }
-    .status-badge.visible { display: inline-flex; }
-    .pulse {
-      width: 8px; height: 8px; border-radius: 50%;
-      background: var(--green);
-      animation: pulse-anim 1.6s ease-in-out infinite;
-    }
-    @keyframes pulse-anim {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(34,211,168,0.6); }
-      50%       { box-shadow: 0 0 0 6px rgba(34,211,168,0); }
-    }
+    /* Textarea */
+    textarea { width:100%;min-height:160px;resize:vertical;background:rgba(0,0,0,0.25);border:1px solid var(--glass-border);border-radius:12px;padding:16px;color:var(--text);font-family:var(--mono);font-size:13px;line-height:1.6;outline:none;transition:border-color 0.3s; }
+    textarea:focus { border-color:var(--accent); }
+    .input-footer { display:flex;align-items:center;justify-content:space-between;margin-top:10px;flex-wrap:wrap;gap:10px; }
+    .email-count { font-size:13px;color:var(--text-dim); }
+    .email-count span { color:var(--accent);font-weight:700;font-family:var(--mono); }
+    .chips { display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;max-height:120px;overflow-y:auto; }
+    .email-pill { background:rgba(168,85,247,0.12);border:1px solid rgba(168,85,247,0.3);border-radius:20px;padding:3px 12px;font-size:11px;font-family:var(--mono);color:var(--accent2); }
+    .email-pill.dup { background:rgba(251,191,36,0.12);border-color:rgba(251,191,36,0.35);color:var(--yellow); }
 
-    .file-stats {
-      display: none; margin-top: 14px;
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-      gap: 10px; margin-top: 14px;
-    }
-    .file-stats.visible { display: grid; }
-    .stat-item {
-      background: rgba(0,0,0,0.2); border-radius: 10px;
-      padding: 10px 14px; text-align: center;
-    }
-    .stat-item .val {
-      font-size: 20px; font-weight: 700;
-      font-family: var(--mono); color: var(--accent);
-    }
-    .stat-item .lbl { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+    /* Buttons */
+    .btn { border:none;border-radius:10px;padding:10px 24px;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.25s;outline:none; }
+    .btn-primary { background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;position:relative;overflow:hidden; }
+    .btn-primary::after { content:'';position:absolute;top:-50%;left:-80%;width:50%;height:200%;background:rgba(255,255,255,0.15);transform:skewX(-20deg);animation:shimmer 2.5s ease-in-out infinite; }
+    @keyframes shimmer { 0%{left:-80%} 60%{left:130%} 100%{left:130%} }
+    .btn-primary:hover { opacity:0.88;transform:translateY(-1px); }
+    .btn-primary:disabled { opacity:0.4;cursor:not-allowed;transform:none; }
+    .btn-outline { background:transparent;border:1px solid var(--glass-border);color:var(--text); }
+    .btn-outline:hover { border-color:var(--accent);color:var(--accent); }
+    .btn-sm { padding:6px 14px;font-size:12px; }
+    .btn-danger { background:rgba(248,113,113,0.15);border:1px solid rgba(248,113,113,0.3);color:var(--red); }
+    .btn-danger:hover { background:rgba(248,113,113,0.25); }
 
-    /* ── Textarea ────────────────────────────────────────────── */
-    textarea {
-      width: 100%; min-height: 160px; resize: vertical;
-      background: rgba(0,0,0,0.25); border: 1px solid var(--glass-border);
-      border-radius: 12px; padding: 16px; color: var(--text);
-      font-family: var(--mono); font-size: 13px; line-height: 1.6;
-      outline: none; transition: border-color 0.3s;
-    }
-    textarea:focus { border-color: var(--accent); }
-    .input-footer {
-      display: flex; align-items: center; justify-content: space-between;
-      margin-top: 10px; flex-wrap: wrap; gap: 10px;
-    }
-    .email-count {
-      font-size: 13px; color: var(--text-dim);
-    }
-    .email-count span { color: var(--accent); font-weight: 700; font-family: var(--mono); }
+    /* Filter bar */
+    .filter-bar { display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center; }
+    .filter-btn { padding:5px 16px;border-radius:20px;border:1px solid var(--glass-border);background:transparent;color:var(--text-dim);font-size:12px;cursor:pointer;transition:all 0.2s; }
+    .filter-btn.active { border-color:var(--accent);color:var(--accent);background:rgba(0,212,255,0.08); }
 
-    /* ── Email chips ─────────────────────────────────────────── */
-    .chips {
-      display: flex; flex-wrap: wrap; gap: 6px;
-      margin-top: 10px; max-height: 120px;
-      overflow-y: auto;
-    }
-    .email-pill {
-      background: rgba(168,85,247,0.12);
-      border: 1px solid rgba(168,85,247,0.3);
-      border-radius: 20px; padding: 3px 12px;
-      font-size: 11px; font-family: var(--mono);
-      color: var(--accent2);
-    }
-    .email-pill.dup {
-      background: rgba(251,191,36,0.12);
-      border-color: rgba(251,191,36,0.35);
-      color: var(--yellow);
-    }
+    /* Table */
+    .table-wrap { overflow-x:auto; }
+    table { width:100%;border-collapse:collapse;font-size:13px; }
+    th { text-align:left;padding:10px 14px;color:var(--text-dim);font-weight:600;font-size:11px;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid var(--glass-border);cursor:pointer;white-space:nowrap;user-select:none; }
+    th:hover { color:var(--accent); }
+    th .sort-icon { opacity:0.4;margin-left:4px; }
+    th.sorted .sort-icon { opacity:1;color:var(--accent); }
+    td { padding:10px 14px;border-bottom:1px solid rgba(100,150,200,0.07);font-family:var(--mono);font-size:12px;vertical-align:middle; }
+    tr.result-row { opacity:0;transform:translateY(8px);animation:rowReveal 0.3s forwards; }
+    @keyframes rowReveal { to{opacity:1;transform:translateY(0)} }
+    tr.result-row:hover td { background:rgba(0,212,255,0.04); }
 
-    /* ── Buttons ─────────────────────────────────────────────── */
-    .btn {
-      border: none; border-radius: 10px;
-      padding: 10px 24px; font-size: 14px; font-weight: 600;
-      cursor: pointer; transition: all 0.25s; outline: none;
-    }
-    .btn-primary {
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
-      color: #fff; position: relative; overflow: hidden;
-    }
-    .btn-primary::after {
-      content: ''; position: absolute; top: -50%; left: -80%;
-      width: 50%; height: 200%;
-      background: rgba(255,255,255,0.15);
-      transform: skewX(-20deg);
-      animation: shimmer 2.5s ease-in-out infinite;
-    }
-    @keyframes shimmer {
-      0%   { left: -80%; }
-      60%  { left: 130%; }
-      100% { left: 130%; }
-    }
-    .btn-primary:hover { opacity: 0.88; transform: translateY(-1px); }
-    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+    /* Badges */
+    .badge { display:inline-flex;align-items:center;gap:5px;border-radius:20px;padding:3px 12px;font-size:11px;font-weight:600; }
+    .badge-done    { background:rgba(34,211,168,0.15);color:var(--green);border:1px solid rgba(34,211,168,0.3); }
+    .badge-fail    { background:rgba(248,113,113,0.15);color:var(--red);border:1px solid rgba(248,113,113,0.3); }
+    .badge-partial { background:rgba(251,191,36,0.12);color:var(--yellow);border:1px solid rgba(251,191,36,0.3); }
+    .badge-notfound{ background:rgba(120,130,150,0.12);color:var(--text-dim);border:1px solid rgba(120,130,150,0.25); }
+    .badge-excel   { background:rgba(34,211,168,0.1);color:var(--green);border:1px solid rgba(34,211,168,0.25); }
+    .badge-sheets  { background:rgba(0,212,255,0.1);color:var(--accent);border:1px solid rgba(0,212,255,0.25); }
+    .badge-drive   { background:rgba(168,85,247,0.1);color:var(--accent2);border:1px solid rgba(168,85,247,0.25); }
 
-    .btn-outline {
-      background: transparent;
-      border: 1px solid var(--glass-border);
-      color: var(--text);
-    }
-    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+    /* Summary strip */
+    .summary-strip { display:none;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px; }
+    .summary-strip.visible { display:grid; }
+    .sum-card { background:var(--glass);border:1px solid var(--glass-border);border-radius:14px;padding:16px 20px;text-align:center;backdrop-filter:blur(12px); }
+    .sum-val { font-size:28px;font-weight:700;font-family:var(--mono);color:var(--accent); }
+    .sum-val.green{color:var(--green)} .sum-val.red{color:var(--red)} .sum-val.yellow{color:var(--yellow)}
+    .sum-lbl { font-size:12px;color:var(--text-dim);margin-top:4px; }
 
-    /* ── Filter bar ──────────────────────────────────────────── */
-    .filter-bar {
-      display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;
-      align-items: center;
-    }
-    .filter-btn {
-      padding: 5px 16px; border-radius: 20px; border: 1px solid var(--glass-border);
-      background: transparent; color: var(--text-dim); font-size: 12px;
-      cursor: pointer; transition: all 0.2s;
-    }
-    .filter-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(0,212,255,0.08); }
-    .filter-btn.done-active   { border-color: var(--green);  color: var(--green);  background: rgba(34,211,168,0.08); }
-    .filter-btn.fail-active   { border-color: var(--red);    color: var(--red);    background: rgba(248,113,113,0.08); }
+    /* Export bar */
+    .export-bar { position:fixed;bottom:0;left:0;right:0;background:rgba(5,10,26,0.85);border-top:1px solid var(--glass-border);backdrop-filter:blur(20px);padding:14px 24px;display:flex;align-items:center;justify-content:center;gap:12px;z-index:100;flex-wrap:wrap; }
+    body.light .export-bar { background:rgba(200,217,240,0.88); }
 
-    /* ── Table ───────────────────────────────────────────────── */
-    .table-wrap { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    th {
-      text-align: left; padding: 10px 14px;
-      color: var(--text-dim); font-weight: 600; font-size: 11px;
-      letter-spacing: 1px; text-transform: uppercase;
-      border-bottom: 1px solid var(--glass-border);
-      cursor: pointer; white-space: nowrap;
-      user-select: none;
-    }
-    th:hover { color: var(--accent); }
-    th .sort-icon { opacity: 0.4; margin-left: 4px; }
-    th.sorted .sort-icon { opacity: 1; color: var(--accent); }
-    td {
-      padding: 10px 14px;
-      border-bottom: 1px solid rgba(100,150,200,0.07);
-      font-family: var(--mono); font-size: 12px;
-      vertical-align: middle;
-    }
-    tr.result-row {
-      opacity: 0; transform: translateY(8px);
-      animation: rowReveal 0.3s forwards;
-    }
-    @keyframes rowReveal {
-      to { opacity: 1; transform: translateY(0); }
-    }
-    tr.result-row:hover td { background: rgba(0,212,255,0.04); }
+    /* History */
+    #history-list { display:flex;flex-wrap:wrap;gap:8px; }
+    .history-chip { background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.25);border-radius:10px;padding:8px 14px;font-size:12px;cursor:pointer;transition:all 0.2s;color:var(--text); }
+    .history-chip:hover { border-color:var(--accent2);color:var(--accent2); }
+    .history-chip .htime { font-size:10px;color:var(--text-dim);display:block; }
 
-    /* ── Status badges in table ──────────────────────────────── */
-    .badge {
-      display: inline-flex; align-items: center; gap: 5px;
-      border-radius: 20px; padding: 3px 12px; font-size: 11px; font-weight: 600;
-    }
-    .badge-done    { background: rgba(34,211,168,0.15); color: var(--green); border: 1px solid rgba(34,211,168,0.3); }
-    .badge-fail    { background: rgba(248,113,113,0.15); color: var(--red);   border: 1px solid rgba(248,113,113,0.3); }
-    .badge-partial { background: rgba(251,191,36,0.12);  color: var(--yellow);border: 1px solid rgba(251,191,36,0.3); }
-    .badge-notfound { background: rgba(120,130,150,0.12); color: var(--text-dim); border: 1px solid rgba(120,130,150,0.25); }
+    /* Spinner */
+    .spinner { display:inline-block;width:18px;height:18px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:6px; }
+    @keyframes spin { to{transform:rotate(360deg)} }
 
-    /* ── Summary strip ───────────────────────────────────────── */
-    .summary-strip {
-      display: none;
-      grid-template-columns: repeat(4, 1fr); gap: 12px;
-      margin-bottom: 20px;
-    }
-    .summary-strip.visible { display: grid; }
-    .sum-card {
-      background: var(--glass); border: 1px solid var(--glass-border);
-      border-radius: 14px; padding: 16px 20px; text-align: center;
-      backdrop-filter: blur(12px);
-    }
-    .sum-val {
-      font-size: 28px; font-weight: 700; font-family: var(--mono);
-      color: var(--accent);
-    }
-    .sum-val.green  { color: var(--green); }
-    .sum-val.red    { color: var(--red); }
-    .sum-val.yellow { color: var(--yellow); }
-    .sum-lbl { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+    /* Toast */
+    #toast { position:fixed;top:20px;right:20px;z-index:999;background:var(--glass);border:1px solid var(--glass-border);border-radius:12px;padding:12px 20px;font-size:14px;backdrop-filter:blur(16px);transform:translateY(-80px) scale(0.95);opacity:0;transition:all 0.35s;pointer-events:none;max-width:340px; }
+    #toast.show { transform:translateY(0) scale(1);opacity:1; }
+    #toast.success { border-color:rgba(34,211,168,0.4);color:var(--green); }
+    #toast.error   { border-color:rgba(248,113,113,0.4);color:var(--red); }
 
-    /* ── Export bar ──────────────────────────────────────────── */
-    .export-bar {
-      position: fixed; bottom: 0; left: 0; right: 0;
-      background: rgba(5,10,26,0.85);
-      border-top: 1px solid var(--glass-border);
-      backdrop-filter: blur(20px);
-      padding: 14px 24px;
-      display: flex; align-items: center; justify-content: center; gap: 12px;
-      z-index: 100; flex-wrap: wrap;
-    }
-    body.light .export-bar { background: rgba(200,217,240,0.88); }
+    /* Empty state */
+    .empty-state { text-align:center;padding:60px 20px;color:var(--text-dim); }
+    .empty-state .icon { font-size:48px;margin-bottom:12px;opacity:0.4; }
 
-    /* ── History panel ───────────────────────────────────────── */
-    #history-list {
-      display: flex; flex-wrap: wrap; gap: 8px;
-    }
-    .history-chip {
-      background: rgba(168,85,247,0.1);
-      border: 1px solid rgba(168,85,247,0.25);
-      border-radius: 10px; padding: 8px 14px; font-size: 12px;
-      cursor: pointer; transition: all 0.2s;
-      color: var(--text);
-    }
-    .history-chip:hover { border-color: var(--accent2); color: var(--accent2); }
-    .history-chip .htime { font-size: 10px; color: var(--text-dim); display: block; }
+    /* ── Admin Modal ── */
+    .modal-overlay { position:fixed;inset:0;z-index:500;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);backdrop-filter:blur(6px); }
+    .modal-overlay.open { display:flex; }
+    .modal { background:var(--bg2);border:1px solid var(--glass-border);border-radius:20px;padding:36px;width:100%;max-width:420px;box-shadow:0 24px 64px rgba(0,0,0,0.5);animation:modalIn 0.3s ease; }
+    @keyframes modalIn { from{transform:translateY(20px) scale(0.97);opacity:0} to{transform:none;opacity:1} }
+    .modal h2 { font-size:20px;margin-bottom:6px; }
+    .modal p.sub { font-size:13px;color:var(--text-dim);margin-bottom:24px; }
+    .form-group { margin-bottom:16px; }
+    .form-group label { display:block;font-size:12px;color:var(--text-dim);margin-bottom:6px;letter-spacing:0.5px;text-transform:uppercase; }
+    .form-group input { width:100%;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:10px;padding:10px 14px;color:var(--text);font-size:14px;outline:none;transition:border-color 0.3s; }
+    .form-group input:focus { border-color:var(--accent); }
+    .modal-footer { display:flex;gap:10px;margin-top:20px; }
+    .modal-close-btn { position:absolute;top:16px;right:16px;background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:20px; }
 
-    /* ── Loader spinner ──────────────────────────────────────── */
-    .spinner {
-      display: inline-block; width: 18px; height: 18px;
-      border: 2px solid rgba(255,255,255,0.3);
-      border-top-color: #fff;
-      border-radius: 50%; animation: spin 0.7s linear infinite;
-      vertical-align: middle; margin-right: 6px;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    /* ── Admin Dashboard ── */
+    #adminDash { position:fixed;inset:0;z-index:400;background:var(--bg);display:none;flex-direction:column;overflow:hidden; }
+    #adminDash.open { display:flex; }
+    .dash-nav { background:rgba(5,10,26,0.9);border-bottom:1px solid var(--glass-border);backdrop-filter:blur(20px);display:flex;align-items:center;padding:0 24px;gap:0;flex-shrink:0; }
+    .dash-logo { display:flex;align-items:center;gap:10px;padding:16px 0;margin-right:24px; }
+    .dash-logo span { font-size:16px;font-weight:700;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent; }
+    .dash-tab { padding:18px 18px;font-size:13px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;color:var(--text-dim);transition:all 0.2s;white-space:nowrap; }
+    .dash-tab:hover { color:var(--text); }
+    .dash-tab.active { color:var(--accent);border-bottom-color:var(--accent); }
+    .dash-spacer { flex:1; }
+    .dash-user { display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text-dim); }
+    .dash-content { flex:1;overflow-y:auto;padding:32px; }
+    .dash-panel { display:none; }
+    .dash-panel.active { display:block; }
+    .dash-header { display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;gap:12px; }
+    .dash-title { font-size:22px;font-weight:700; }
+    .dash-subtitle { font-size:13px;color:var(--text-dim);margin-top:4px; }
+    .action-bar { display:flex;gap:10px;align-items:center;flex-wrap:wrap; }
 
-    /* ── Toast ───────────────────────────────────────────────── */
-    #toast {
-      position: fixed; top: 20px; right: 20px; z-index: 999;
-      background: var(--glass); border: 1px solid var(--glass-border);
-      border-radius: 12px; padding: 12px 20px; font-size: 14px;
-      backdrop-filter: blur(16px);
-      transform: translateY(-80px) scale(0.95);
-      opacity: 0; transition: all 0.35s;
-      pointer-events: none; max-width: 340px;
-    }
-    #toast.show { transform: translateY(0) scale(1); opacity: 1; }
-    #toast.success { border-color: rgba(34,211,168,0.4); color: var(--green); }
-    #toast.error   { border-color: rgba(248,113,113,0.4); color: var(--red); }
+    /* Admin table */
+    .admin-table { width:100%;border-collapse:collapse;font-size:13px; }
+    .admin-table th { text-align:left;padding:10px 14px;color:var(--text-dim);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--glass-border); }
+    .admin-table td { padding:10px 14px;border-bottom:1px solid rgba(100,150,200,0.07);vertical-align:middle; }
+    .admin-table tr:last-child td { border-bottom:none; }
+    .admin-table tr:hover td { background:rgba(0,212,255,0.03); }
 
-    /* ── Empty state ─────────────────────────────────────────── */
-    .empty-state {
-      text-align: center; padding: 60px 20px; color: var(--text-dim);
-    }
-    .empty-state .icon { font-size: 48px; margin-bottom: 12px; opacity: 0.4; }
+    /* Add-file form */
+    .add-form { background:rgba(0,0,0,0.2);border:1px solid var(--glass-border);border-radius:14px;padding:24px;margin-bottom:24px; }
+    .add-form h3 { font-size:15px;margin-bottom:18px;color:var(--accent); }
+    .form-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px; }
+    .form-grid .form-group { margin-bottom:0; }
+    .form-group select { width:100%;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:10px;padding:10px 14px;color:var(--text);font-size:14px;outline:none;appearance:none; }
+    .toggle-wrap { display:flex;align-items:center;gap:10px;margin-top:8px; }
+    .toggle { width:38px;height:20px;background:rgba(100,120,160,0.3);border:none;border-radius:10px;cursor:pointer;transition:background 0.2s;flex-shrink:0;position:relative; }
+    .toggle::after { content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;background:#fff;border-radius:50%;transition:transform 0.2s; }
+    .toggle.on { background:var(--accent); }
+    .toggle.on::after { transform:translateX(18px); }
 
-    /* ── Responsive ──────────────────────────────────────────── */
-    @media (max-width: 640px) {
-      .summary-strip { grid-template-columns: repeat(2,1fr); }
-      header { flex-direction: column; align-items: flex-start; gap: 12px; }
+    /* Cache stat card */
+    .cache-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px; }
+    .cache-card { background:var(--glass);border:1px solid var(--glass-border);border-radius:14px;padding:18px;backdrop-filter:blur(12px); }
+    .cache-card h4 { font-size:13px;margin-bottom:10px;color:var(--accent); }
+    .cache-card p { font-size:12px;color:var(--text-dim);margin-bottom:4px; }
+
+    /* Settings grid */
+    .settings-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px; }
+    .setting-card { background:var(--glass);border:1px solid var(--glass-border);border-radius:14px;padding:20px;backdrop-filter:blur(12px); }
+    .setting-card label { display:block;font-size:11px;color:var(--text-dim);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px; }
+    .setting-card input { width:100%;background:rgba(0,0,0,0.25);border:1px solid var(--glass-border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:14px;outline:none; }
+    .setting-card input:focus { border-color:var(--accent); }
+
+    /* Responsive */
+    @media (max-width:640px) {
+      .summary-strip { grid-template-columns:repeat(2,1fr); }
+      header { flex-direction:column;align-items:flex-start;gap:12px; }
+      .dash-tab { padding:16px 10px;font-size:12px; }
     }
   </style>
 </head>
 <body>
-  <div class="aurora">
-    <span></span><span></span><span></span>
-  </div>
-
+  <div class="aurora"><span></span><span></span><span></span></div>
   <div id="toast"></div>
 
+  <!-- ═══════════════════════════════════════════ USER VIEW ═════════════════ -->
   <div class="container">
-    <!-- Header -->
     <header>
       <div class="logo">
         <div class="logo-icon">📧</div>
         <div class="logo-text">
-          <h1>EmailVault</h1>
-          <p>Excel-based email lookup &amp; verification</p>
+          <h1>EmailVault Pro</h1>
+          <p>Multi-source email lookup &amp; verification</p>
         </div>
       </div>
       <div class="header-actions">
+        <div class="magic-badge" id="magicBadge">⚡ Override Session</div>
         <button class="theme-toggle" id="themeBtn" title="Toggle light/dark mode">🌙</button>
+        <button class="admin-btn" id="adminLoginBtn" title="Admin">🔒 Admin</button>
       </div>
     </header>
 
-    <!-- ① File Upload / Select -->
+    <!-- ① Data Source -->
     <div class="card">
-      <div class="section-title">① Load Excel File</div>
+      <div class="section-title">① Select Data Source</div>
 
-      <!-- Existing files strip -->
+      <!-- Supabase public files dropdown -->
+      <div id="public-files-strip"></div>
+
+      <!-- Legacy local file strip -->
       <div id="existing-files-strip"></div>
 
+      <!-- Upload zone (legacy / admin excel upload) -->
       <div class="upload-zone" id="uploadZone">
         <input type="file" id="fileInput" accept=".xlsx,.xls" />
         <div class="upload-icon">📂</div>
@@ -458,7 +278,7 @@
 
       <div id="loadedBadge" class="status-badge">
         <div class="pulse"></div>
-        <span id="loadedLabel">Excel Loaded</span>
+        <span id="loadedLabel">Source Loaded</span>
       </div>
 
       <div id="fileStats" class="file-stats">
@@ -470,51 +290,31 @@
           <div class="val" id="statEmails">—</div>
           <div class="lbl">Email Entries</div>
         </div>
-        <div class="stat-item" id="statColsWrap">
-          <div class="val" id="statCols">—</div>
-          <div class="lbl">Columns</div>
-        </div>
       </div>
     </div>
 
     <!-- ② Email Input -->
     <div class="card">
       <div class="section-title">② Paste Email Text</div>
-      <textarea id="emailInput"
-        placeholder="Paste any text containing emails here — messy logs, CSVs, tickets, whatever...&#10;&#10;Live email detection will highlight them below."></textarea>
+      <textarea id="emailInput" placeholder="Paste any text containing emails — logs, CSVs, tickets…&#10;&#10;Live detection highlights them below."></textarea>
       <div class="input-footer">
         <div class="email-count">Detected: <span id="detectedCount">0</span> email(s)</div>
-        <button class="btn btn-primary" id="lookupBtn" disabled>
-          🔍 Run Lookup
-        </button>
+        <button class="btn btn-primary" id="lookupBtn" disabled>🔍 Run Lookup</button>
       </div>
       <div class="chips" id="emailChips"></div>
     </div>
 
-    <!-- ③ Summary strip -->
+    <!-- Summary strip -->
     <div class="summary-strip" id="summaryStrip">
-      <div class="sum-card">
-        <div class="sum-val" id="sumTotal">0</div>
-        <div class="sum-lbl">Total Checked</div>
-      </div>
-      <div class="sum-card">
-        <div class="sum-val green" id="sumDone">0</div>
-        <div class="sum-lbl">✅ Done</div>
-      </div>
-      <div class="sum-card">
-        <div class="sum-val red" id="sumFail">0</div>
-        <div class="sum-lbl">❌ Fail</div>
-      </div>
-      <div class="sum-card">
-        <div class="sum-val yellow" id="sumNotFound">0</div>
-        <div class="sum-lbl">⚠️ Not Found</div>
-      </div>
+      <div class="sum-card"><div class="sum-val" id="sumTotal">0</div><div class="sum-lbl">Total Checked</div></div>
+      <div class="sum-card"><div class="sum-val green" id="sumDone">0</div><div class="sum-lbl">✅ Done</div></div>
+      <div class="sum-card"><div class="sum-val red" id="sumFail">0</div><div class="sum-lbl">❌ Fail</div></div>
+      <div class="sum-card"><div class="sum-val yellow" id="sumNotFound">0</div><div class="sum-lbl">⚠️ Not Found</div></div>
     </div>
 
-    <!-- ③ Results table -->
+    <!-- ③ Results -->
     <div class="card" id="resultsCard">
       <div class="section-title">③ Results</div>
-
       <div class="filter-bar" id="filterBar" style="display:none">
         <span style="font-size:12px;color:var(--text-dim);margin-right:4px">Filter:</span>
         <button class="filter-btn active" data-filter="all">All</button>
@@ -523,7 +323,6 @@
         <button class="filter-btn" data-filter="not found">⚠️ Not Found</button>
         <button class="filter-btn" data-filter="partial">🔶 Partial</button>
       </div>
-
       <div class="table-wrap">
         <table id="resultsTable" style="display:none">
           <thead>
@@ -531,8 +330,7 @@
               <th data-col="idx">#<span class="sort-icon">↕</span></th>
               <th data-col="email">Email<span class="sort-icon">↕</span></th>
               <th data-col="rowNumber">Row #<span class="sort-icon">↕</span></th>
-              <th data-col="检查结果">检查结果<span class="sort-icon">↕</span></th>
-              <th data-col="卖家">卖家<span class="sort-icon">↕</span></th>
+              <th data-col="result">Result<span class="sort-icon">↕</span></th>
               <th data-col="status">Status<span class="sort-icon">↕</span></th>
             </tr>
           </thead>
@@ -546,66 +344,293 @@
     </div>
 
     <!-- ④ History -->
-    <div class="card" id="historyCard">
+    <div class="card">
       <div class="section-title">④ Recent Lookups</div>
-      <div id="history-list">
-        <span style="color:var(--text-dim);font-size:13px">No history yet. Run a lookup to populate this.</span>
-      </div>
+      <div id="history-list"><span style="color:var(--text-dim);font-size:13px">No history yet.</span></div>
     </div>
   </div>
 
-  <!-- Export bar (always visible at bottom) -->
+  <!-- Export bar -->
   <div class="export-bar">
     <span style="font-size:12px;color:var(--text-dim)">Export:</span>
     <button class="btn btn-outline" id="exportCsvBtn">⬇️ CSV</button>
     <button class="btn btn-outline" id="exportJsonBtn">⬇️ JSON</button>
-    <button class="btn btn-outline" id="copyClipBtn">📋 Copy (email=result)</button>
+    <button class="btn btn-outline" id="copyClipBtn">📋 Copy</button>
   </div>
 
+  <!-- ══════════════════════════════════════ ADMIN LOGIN MODAL ═════════════ -->
+  <div class="modal-overlay" id="adminModal">
+    <div class="modal" style="position:relative">
+      <button class="modal-close-btn" id="modalCloseBtn">✕</button>
+      <h2>🔒 Admin Access</h2>
+
+      <!-- Login form -->
+      <div id="loginForm">
+        <p class="sub">Sign in to the admin dashboard</p>
+        <div class="form-group"><label>Username</label><input type="text" id="loginUser" autocomplete="username" /></div>
+        <div class="form-group"><label>Password</label><input type="password" id="loginPass" autocomplete="current-password" /></div>
+        <div class="modal-footer">
+          <button class="btn btn-primary" id="loginSubmitBtn" style="flex:1">Sign In</button>
+        </div>
+        <p style="text-align:center;margin-top:12px;font-size:12px;color:var(--text-dim)">
+          <a href="#" id="magicKeyToggle" style="color:var(--accent);text-decoration:none">Use override key instead →</a>
+        </p>
+      </div>
+
+      <!-- Magic key form -->
+      <div id="magicForm" style="display:none">
+        <p class="sub">Enter your override key for emergency access</p>
+        <div class="form-group"><label>Username (any)</label><input type="text" id="magicUser" value="override" /></div>
+        <div class="form-group"><label>Override Key</label><input type="password" id="magicKeyInput" /></div>
+        <div class="modal-footer">
+          <button class="btn btn-primary" id="magicSubmitBtn" style="flex:1">⚡ Enter Override Session</button>
+        </div>
+        <p style="text-align:center;margin-top:12px;font-size:12px;color:var(--text-dim)">
+          <a href="#" id="normalLoginToggle" style="color:var(--accent);text-decoration:none">← Back to normal login</a>
+        </p>
+      </div>
+
+      <!-- Force password change form -->
+      <div id="forceChangeForm" style="display:none">
+        <p class="sub" style="color:var(--yellow)">⚠️ You must set a new password before continuing.</p>
+        <input type="hidden" id="forceAdminId" />
+        <div class="form-group"><label>New Password</label><input type="password" id="newPass1" placeholder="Minimum 8 characters" /></div>
+        <div class="form-group"><label>Confirm Password</label><input type="password" id="newPass2" /></div>
+        <div class="modal-footer">
+          <button class="btn btn-primary" id="changePassBtn" style="flex:1">Set Password &amp; Continue</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════ ADMIN DASHBOARD ═════════════════ -->
+  <div id="adminDash">
+    <nav class="dash-nav">
+      <div class="dash-logo">
+        <span>📧 EmailVault Pro</span>
+      </div>
+      <div class="dash-tab active" data-tab="files">📁 Files</div>
+      <div class="dash-tab" data-tab="sessions">📋 Sessions</div>
+      <div class="dash-tab" data-tab="cache">⚡ Cache</div>
+      <div class="dash-tab" data-tab="settings">⚙️ Settings</div>
+      <div class="dash-tab" data-tab="audit">🔍 Audit Log</div>
+      <div class="dash-spacer"></div>
+      <div class="dash-user">
+        <span id="dashUsername"></span>
+        <div class="magic-badge" id="dashMagicBadge">⚡ Override</div>
+        <button class="btn btn-outline btn-sm" id="dashLogoutBtn">Logout</button>
+        <button class="btn btn-outline btn-sm" id="dashCloseBtn">✕ Close</button>
+      </div>
+    </nav>
+
+    <div class="dash-content">
+
+      <!-- ── Files tab ─────────────────────────────────────────────── -->
+      <div class="dash-panel active" id="panelFiles">
+        <div class="dash-header">
+          <div><div class="dash-title">Data Sources</div><div class="dash-subtitle">Manage registered Excel, Sheets and Drive sources</div></div>
+          <div class="action-bar">
+            <button class="btn btn-primary btn-sm" id="showAddFormBtn">+ Add Source</button>
+            <button class="btn btn-outline btn-sm" id="refreshFilesBtn">↻ Refresh</button>
+          </div>
+        </div>
+
+        <!-- Add-file form (hidden by default) -->
+        <div class="add-form" id="addFileForm" style="display:none">
+          <h3>Register New Data Source</h3>
+          <div class="form-grid">
+            <div class="form-group"><label>Label</label><input type="text" id="fLabel" placeholder="My Email List" /></div>
+            <div class="form-group">
+              <label>Source Type</label>
+              <select id="fSourceType">
+                <option value="excel">Excel (upload)</option>
+                <option value="sheets">Google Sheets</option>
+                <option value="drive">Google Drive</option>
+              </select>
+            </div>
+            <div class="form-group" id="fRefGroup">
+              <label>Sheet ID / Drive File ID</label>
+              <input type="text" id="fSourceRef" placeholder="Paste ID here" />
+            </div>
+            <div class="form-group" id="fUploadGroup" style="display:none">
+              <label>Excel File</label>
+              <input type="file" id="fFile" accept=".xlsx,.xls" style="background:transparent;border:1px dashed var(--glass-border);border-radius:8px;padding:8px;" />
+            </div>
+            <div class="form-group">
+              <label>Sheet Tab (optional)</label>
+              <input type="text" id="fSheetTab" placeholder="Sheet1" />
+            </div>
+            <div class="form-group"><label>Email Column</label><input type="text" id="fColEmail" placeholder="邮箱 or B" /></div>
+            <div class="form-group"><label>Result Column</label><input type="text" id="fColResult" placeholder="检查结果 or E" /></div>
+            <div class="form-group"><label>Cache TTL (seconds)</label><input type="number" id="fTtl" value="300" min="30" /></div>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:16px">
+            <button class="btn btn-primary btn-sm" id="addFileSubmitBtn">Save Source</button>
+            <button class="btn btn-outline btn-sm" id="cancelAddFormBtn">Cancel</button>
+          </div>
+        </div>
+
+        <div class="card" style="padding:0;overflow:hidden">
+          <div class="table-wrap">
+            <table class="admin-table" id="filesTable">
+              <thead>
+                <tr>
+                  <th>Label</th><th>Type</th><th>Columns</th><th>Rows</th>
+                  <th>TTL</th><th>Active</th><th>Last Refreshed</th><th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="filesBody"><tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text-dim)">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Sessions tab ──────────────────────────────────────────── -->
+      <div class="dash-panel" id="panelSessions">
+        <div class="dash-header">
+          <div><div class="dash-title">Lookup Sessions</div><div class="dash-subtitle">History of all email lookups</div></div>
+          <div class="action-bar">
+            <button class="btn btn-outline btn-sm" id="refreshSessionsBtn">↻ Refresh</button>
+          </div>
+        </div>
+        <div class="card" style="padding:0;overflow:hidden">
+          <div class="table-wrap">
+            <table class="admin-table" id="sessionsTable">
+              <thead>
+                <tr><th>Time</th><th>File</th><th>Checked</th><th>Done</th><th>Fail</th><th>Not Found</th><th>IP</th><th>By</th></tr>
+              </thead>
+              <tbody id="sessionsBody"><tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text-dim)">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Cache tab ─────────────────────────────────────────────── -->
+      <div class="dash-panel" id="panelCache">
+        <div class="dash-header">
+          <div><div class="dash-title">Cache Status</div><div class="dash-subtitle">In-memory TTL cache overview</div></div>
+          <div class="action-bar">
+            <button class="btn btn-danger btn-sm" id="flushAllCacheBtn">🗑 Flush All</button>
+            <button class="btn btn-outline btn-sm" id="refreshCacheBtn">↻ Refresh</button>
+          </div>
+        </div>
+        <div class="cache-grid" id="cacheGrid">
+          <div style="color:var(--text-dim);font-size:13px">Loading…</div>
+        </div>
+      </div>
+
+      <!-- ── Settings tab ──────────────────────────────────────────── -->
+      <div class="dash-panel" id="panelSettings">
+        <div class="dash-header">
+          <div><div class="dash-title">Settings</div><div class="dash-subtitle">App configuration stored in pars.settings</div></div>
+          <div class="action-bar">
+            <button class="btn btn-primary btn-sm" id="saveSettingsBtn">💾 Save Changes</button>
+          </div>
+        </div>
+        <div class="settings-grid" id="settingsGrid">
+          <div style="color:var(--text-dim);font-size:13px">Loading…</div>
+        </div>
+        <div class="card" style="margin-top:20px">
+          <div class="section-title">Change Password</div>
+          <div class="form-grid">
+            <div class="form-group"><label>Current Password</label><input type="password" id="cpCurrent" /></div>
+            <div class="form-group"><label>New Password (≥8 chars)</label><input type="password" id="cpNew1" /></div>
+            <div class="form-group"><label>Confirm New Password</label><input type="password" id="cpNew2" /></div>
+          </div>
+          <button class="btn btn-primary btn-sm" id="changePassDashBtn" style="margin-top:14px">Change Password</button>
+        </div>
+      </div>
+
+      <!-- ── Audit log tab ─────────────────────────────────────────── -->
+      <div class="dash-panel" id="panelAudit">
+        <div class="dash-header">
+          <div><div class="dash-title">Audit Log</div><div class="dash-subtitle">Admin actions recorded in pars.audit_log</div></div>
+          <div class="action-bar">
+            <button class="btn btn-outline btn-sm" id="refreshAuditBtn">↻ Refresh</button>
+          </div>
+        </div>
+        <div class="card" style="padding:0;overflow:hidden">
+          <div class="table-wrap">
+            <table class="admin-table" id="auditTable">
+              <thead>
+                <tr><th>Time</th><th>Action</th><th>IP</th><th>Detail</th></tr>
+              </thead>
+              <tbody id="auditBody"><tr><td colspan="4" style="text-align:center;padding:30px;color:var(--text-dim)">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /.dash-content -->
+  </div><!-- /#adminDash -->
+
+  <!-- ════════════════════════════════════════════ SCRIPTS ═════════════════ -->
   <script>
   (() => {
     'use strict';
 
     // ── State ──────────────────────────────────────────────────
     let currentResults = [];
-    let sortCol = 'idx';
-    let sortDir = 1; // 1=asc -1=desc
+    let sortCol = 'idx', sortDir = 1;
     let activeFilter = 'all';
+    let selectedFileId = null;   // null = legacy mode, UUID = Supabase file
+    let adminToken = null;
     const EMAIL_RE = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g;
     const HISTORY_KEY = 'emailvault_history';
+    const TOKEN_KEY   = 'ev_admin_token';
 
     // ── DOM refs ───────────────────────────────────────────────
-    const fileInput     = document.getElementById('fileInput');
-    const uploadZone    = document.getElementById('uploadZone');
-    const loadedBadge   = document.getElementById('loadedBadge');
-    const loadedLabel   = document.getElementById('loadedLabel');
-    const fileStats     = document.getElementById('fileStats');
-    const statRows      = document.getElementById('statRows');
-    const statEmails    = document.getElementById('statEmails');
-    const statCols      = document.getElementById('statCols');
-    const emailInput    = document.getElementById('emailInput');
-    const detectedCount = document.getElementById('detectedCount');
-    const emailChips    = document.getElementById('emailChips');
-    const lookupBtn     = document.getElementById('lookupBtn');
-    const resultsTable  = document.getElementById('resultsTable');
-    const resultsBody   = document.getElementById('resultsBody');
-    const emptyState    = document.getElementById('emptyState');
-    const summaryStrip  = document.getElementById('summaryStrip');
-    const filterBar     = document.getElementById('filterBar');
-    const themeBtn      = document.getElementById('themeBtn');
-    const toastEl       = document.getElementById('toast');
-    const existingStrip = document.getElementById('existing-files-strip');
+    const fileInput       = document.getElementById('fileInput');
+    const uploadZone      = document.getElementById('uploadZone');
+    const loadedBadge     = document.getElementById('loadedBadge');
+    const loadedLabel     = document.getElementById('loadedLabel');
+    const fileStats       = document.getElementById('fileStats');
+    const statRows        = document.getElementById('statRows');
+    const statEmails      = document.getElementById('statEmails');
+    const emailInput      = document.getElementById('emailInput');
+    const detectedCount   = document.getElementById('detectedCount');
+    const emailChips      = document.getElementById('emailChips');
+    const lookupBtn       = document.getElementById('lookupBtn');
+    const resultsTable    = document.getElementById('resultsTable');
+    const resultsBody     = document.getElementById('resultsBody');
+    const emptyState      = document.getElementById('emptyState');
+    const summaryStrip    = document.getElementById('summaryStrip');
+    const filterBar       = document.getElementById('filterBar');
+    const themeBtn        = document.getElementById('themeBtn');
+    const toastEl         = document.getElementById('toast');
+    const publicStrip     = document.getElementById('public-files-strip');
+    const existingStrip   = document.getElementById('existing-files-strip');
 
     // ── Toast ──────────────────────────────────────────────────
     let toastTimer;
     function showToast(msg, type = 'success') {
       toastEl.textContent = msg;
-      toastEl.className = `show ${type}`;
+      toastEl.className = 'show ' + type;
       clearTimeout(toastTimer);
       toastTimer = setTimeout(() => { toastEl.className = ''; }, 3200);
     }
 
-    // ── Theme toggle ───────────────────────────────────────────
+    // ── XSS helper ─────────────────────────────────────────────
+    function escHtml(str) {
+      return String(str ?? '')
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // ── Auth helpers ───────────────────────────────────────────
+    function authHeaders() {
+      const tok = adminToken || localStorage.getItem(TOKEN_KEY);
+      return tok ? { Authorization: 'Bearer ' + tok } : {};
+    }
+    function saveToken(tok) {
+      adminToken = tok;
+      localStorage.setItem(TOKEN_KEY, tok);
+    }
+    function clearToken() {
+      adminToken = null;
+      localStorage.removeItem(TOKEN_KEY);
+    }
+
+    // ── Theme ──────────────────────────────────────────────────
     themeBtn.addEventListener('click', () => {
       document.body.classList.toggle('light');
       themeBtn.textContent = document.body.classList.contains('light') ? '🌞' : '🌙';
@@ -613,37 +638,65 @@
 
     // ── Keyboard shortcuts ─────────────────────────────────────
     document.addEventListener('keydown', e => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-        e.preventDefault();
-        if (!lookupBtn.disabled) lookupBtn.click();
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
-        e.preventDefault();
-        exportCsvBtn.click();
-      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); if (!lookupBtn.disabled) lookupBtn.click(); }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'e') { e.preventDefault(); document.getElementById('exportCsvBtn').click(); }
     });
 
-    // ── Check server status & list existing files on load ──────
-    async function initStatus() {
+    // ── Init ───────────────────────────────────────────────────
+    async function init() {
+      await loadPublicFiles();
+      await initLegacyStatus();
+      renderHistory(getHistory());
+      const savedTok = localStorage.getItem(TOKEN_KEY);
+      if (savedTok) { adminToken = savedTok; }
+    }
+
+    // Load Supabase-registered active files for user dropdown
+    async function loadPublicFiles() {
       try {
-        const [statusRes, filesRes] = await Promise.all([
-          fetch('/status'),
-          fetch('/files'),
-        ]);
+        const res   = await fetch('/files/public');
+        const files = await res.json();
+        if (!Array.isArray(files) || !files.length) return;
+        publicStrip.innerHTML =
+          '<span style="font-size:12px;color:var(--text-dim);align-self:center">Source:</span>' +
+          files.map(f =>
+            `<button class="file-chip" data-id="${escHtml(f.id)}" data-label="${escHtml(f.label)}">
+               <span>${escHtml(f.label)}</span>
+             </button>`
+          ).join('');
+        publicStrip.classList.add('visible');
+        publicStrip.querySelectorAll('.file-chip').forEach(btn => {
+          btn.addEventListener('click', () => selectPublicFile(btn.dataset.id, btn.dataset.label, btn));
+        });
+      } catch (_) {}
+    }
+
+    function selectPublicFile(id, label, chipEl) {
+      selectedFileId = id;
+      publicStrip.querySelectorAll('.file-chip').forEach(b => b.classList.remove('active'));
+      existingStrip.querySelectorAll('.file-chip').forEach(b => b.classList.remove('active'));
+      chipEl.classList.add('active');
+      loadedBadge.classList.add('visible');
+      loadedLabel.textContent = '✔ ' + label;
+      fileStats.classList.remove('visible');
+      lookupBtn.disabled = false;
+      showToast('Source: ' + label);
+    }
+
+    // Legacy local files
+    async function initLegacyStatus() {
+      try {
+        const [statusRes, filesRes] = await Promise.all([fetch('/status'), fetch('/files')]);
         const status = await statusRes.json();
         const files  = await filesRes.json();
-
-        if (status.loaded) {
-          showFileLoaded(status.fileName, status.totalRows, status.emailCount, status.columns);
-        }
-
+        if (status.loaded) showFileLoaded(status.fileName, status.totalRows, status.emailCount);
         if (files.length) {
           existingStrip.innerHTML =
-            '<span style="font-size:12px;color:var(--text-dim);align-self:center">Existing:</span>' +
+            '<span style="font-size:12px;color:var(--text-dim);align-self:center">Local:</span>' +
             files.map(f =>
               `<button class="file-chip ${status.fileName===f.name?'active':''}" data-name="${escHtml(f.name)}">
-                <span class="file-chip-icon">📄</span>${escHtml(f.name)}
-              </button>`
+                 📄 ${escHtml(f.name)}
+               </button>`
             ).join('');
           existingStrip.classList.add('visible');
           existingStrip.querySelectorAll('.file-chip').forEach(btn => {
@@ -652,69 +705,53 @@
         }
       } catch (_) {}
     }
-    initStatus();
 
-    // ── Select existing file from server ───────────────────────
     async function selectExistingFile(fileName, chipEl) {
-      chipEl.textContent = '⏳ Loading…';
+      chipEl.textContent = '⏳…';
       try {
-        const res  = await fetch('/select', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fileName }),
-        });
+        const res  = await fetch('/select', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({fileName}) });
         const data = await res.json();
         if (!res.ok) { showToast(data.error || 'Error', 'error'); return; }
-        showFileLoaded(data.fileName, data.totalRows, data.emailCount, data.columns);
+        selectedFileId = null;
+        showFileLoaded(data.fileName, data.totalRows, data.emailCount);
         existingStrip.querySelectorAll('.file-chip').forEach(b => b.classList.remove('active'));
+        publicStrip.querySelectorAll('.file-chip').forEach(b => b.classList.remove('active'));
         chipEl.classList.add('active');
-        showToast(`Loaded "${data.fileName}" — ${data.emailCount} emails`);
-      } catch (err) {
-        showToast('Network error', 'error');
-      } finally {
-        // Restore chip label
-        initStatus();
-      }
+        showToast('Loaded "' + data.fileName + '"');
+      } catch { showToast('Network error', 'error'); }
+      finally { initLegacyStatus(); }
     }
 
-    // ── Drag-and-drop ──────────────────────────────────────────
-    uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+    // Drag-and-drop / upload
+    uploadZone.addEventListener('dragover',  e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
     uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
-    uploadZone.addEventListener('drop', e => {
-      e.preventDefault(); uploadZone.classList.remove('dragover');
-      const file = e.dataTransfer.files[0];
-      if (file) uploadFile(file);
-    });
-    fileInput.addEventListener('change', () => {
-      if (fileInput.files[0]) uploadFile(fileInput.files[0]);
-    });
+    uploadZone.addEventListener('drop', e => { e.preventDefault(); uploadZone.classList.remove('dragover'); const f = e.dataTransfer.files[0]; if (f) uploadFile(f); });
+    fileInput.addEventListener('change', () => { if (fileInput.files[0]) uploadFile(fileInput.files[0]); });
 
-    // ── Upload ─────────────────────────────────────────────────
     async function uploadFile(file) {
-      const zone = uploadZone;
-      zone.style.opacity = '0.6';
+      uploadZone.style.opacity = '0.6';
       const fd = new FormData();
       fd.append('file', file);
       try {
-        const res  = await fetch('/upload', { method: 'POST', body: fd });
+        const res  = await fetch('/upload', { method:'POST', body:fd });
         const data = await res.json();
         if (!res.ok) { showToast(data.error || 'Upload failed', 'error'); return; }
-        showFileLoaded(data.fileName, data.totalRows, data.emailCount, data.columns);
-        showToast(`Loaded "${data.fileName}" — ${data.emailCount} emails indexed`);
-        initStatus(); // refresh existing files list
+        selectedFileId = null;
+        showFileLoaded(data.fileName, data.totalRows, data.emailCount);
+        showToast('Loaded "' + data.fileName + '"');
+        initLegacyStatus();
       } catch (err) {
         showToast('Upload error: ' + err.message, 'error');
       } finally {
-        zone.style.opacity = '1';
+        uploadZone.style.opacity = '1';
       }
     }
 
-    function showFileLoaded(fileName, totalRows, emailCount, columns) {
+    function showFileLoaded(fileName, totalRows, emailCount) {
       loadedBadge.classList.add('visible');
-      loadedLabel.textContent = `✔ Loaded: ${fileName}`;
+      loadedLabel.textContent = '✔ ' + fileName;
       statRows.textContent   = totalRows;
       statEmails.textContent = emailCount;
-      statCols.textContent   = columns ? columns.length : '—';
       fileStats.classList.add('visible');
       lookupBtn.disabled = false;
     }
@@ -724,19 +761,14 @@
     function liveDetect() {
       const txt = emailInput.value;
       const matches = txt.match(EMAIL_RE) || [];
-      // count occurrences
       const freq = {};
       matches.forEach(e => { freq[e.toLowerCase()] = (freq[e.toLowerCase()]||0)+1; });
       const unique = Object.keys(freq);
       detectedCount.textContent = unique.length;
-      emailChips.innerHTML = unique.slice(0, 80).map(e =>
-        `<span class="email-pill${freq[e]>1?' dup':''}" title="${freq[e]>1?'Duplicate':''}">
-          ${escHtml(e)}${freq[e]>1?` ×${freq[e]}`:''}
-        </span>`
+      emailChips.innerHTML = unique.slice(0,80).map(e =>
+        `<span class="email-pill${freq[e]>1?' dup':''}">${escHtml(e)}${freq[e]>1?' ×'+freq[e]:''}</span>`
       ).join('');
-      if (unique.length > 80) {
-        emailChips.innerHTML += `<span class="email-pill" style="opacity:0.5">…+${unique.length-80} more</span>`;
-      }
+      if (unique.length > 80) emailChips.innerHTML += `<span class="email-pill" style="opacity:0.5">…+${unique.length-80} more</span>`;
     }
 
     // ── Lookup ─────────────────────────────────────────────────
@@ -744,194 +776,129 @@
     async function runLookup() {
       const text = emailInput.value.trim();
       if (!text) { showToast('Please paste some text first', 'error'); return; }
-      lookupBtn.innerHTML = '<span class="spinner"></span> Looking up…';
+      lookupBtn.innerHTML = '<span class="spinner"></span>Looking up…';
       lookupBtn.disabled = true;
       try {
-        const res  = await fetch('/lookup', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text }),
-        });
+        const body = { text };
+        if (selectedFileId) body.fileId = selectedFileId;
+        const res  = await fetch('/lookup', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
         const data = await res.json();
         if (!res.ok) { showToast(data.error || 'Lookup failed', 'error'); return; }
-        currentResults = data.results.map((r, i) => ({ ...r, idx: i + 1 }));
+        currentResults = data.results.map((r,i) => ({...r, idx:i+1}));
         renderResults(currentResults);
         updateSummary(currentResults);
         saveHistory(currentResults);
-        showToast(`Lookup complete — ${data.total} result(s)`);
+        showToast('Lookup complete — ' + data.total + ' result(s)');
       } catch (err) {
         showToast('Network error: ' + err.message, 'error');
       } finally {
         lookupBtn.innerHTML = '🔍 Run Lookup';
-        lookupBtn.disabled = false;
+        lookupBtn.disabled  = false;
       }
     }
 
     // ── Render results ─────────────────────────────────────────
     function renderResults(rows) {
-      let filtered = rows;
-      if (activeFilter !== 'all') {
-        filtered = rows.filter(r => r.status === activeFilter);
-      }
-      // Sort
-      filtered = [...filtered].sort((a, b) => {
-        let va = a[sortCol] ?? '';
-        let vb = b[sortCol] ?? '';
-        if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * sortDir;
-        return String(va).localeCompare(String(vb)) * sortDir;
+      let filtered = activeFilter === 'all' ? rows : rows.filter(r => r.status === activeFilter);
+      filtered = [...filtered].sort((a,b) => {
+        let va = a[sortCol] ?? '', vb = b[sortCol] ?? '';
+        if (typeof va === 'number' && typeof vb === 'number') return (va-vb)*sortDir;
+        return String(va).localeCompare(String(vb))*sortDir;
       });
-
       if (!filtered.length) {
         resultsTable.style.display = 'none';
         emptyState.innerHTML = '<div class="icon">🕳️</div><div>No results match the current filter.</div>';
+        emptyState.style.display = 'block';
         return;
       }
-
-      resultsBody.innerHTML = filtered.map((r, i) =>
+      resultsBody.innerHTML = filtered.map((r,i) =>
         `<tr class="result-row" style="animation-delay:${Math.min(i*30,600)}ms">
           <td style="color:var(--text-dim)">${r.idx}</td>
-          <td>${escHtml(r.email)}${r.duplicate ? ' <span title="Duplicate in input" style="color:var(--yellow);font-size:10px">DUP</span>' : ''}</td>
+          <td>${escHtml(r.email)}${r.duplicate?' <span style="color:var(--yellow);font-size:10px">DUP</span>':''}</td>
           <td style="color:var(--text-dim)">${r.rowNumber ?? '—'}</td>
-          <td>${escHtml(r['检查结果'] || '—')}</td>
-          <td>${escHtml(r['卖家'] || '—')}</td>
+          <td>${escHtml(r.result || '—')}</td>
           <td>${badgeHtml(r.status)}</td>
         </tr>`
       ).join('');
-
       resultsTable.style.display = 'table';
       emptyState.style.display = 'none';
       filterBar.style.display = 'flex';
     }
 
     function badgeHtml(status) {
-      const map = {
-        'done':      ['badge-done',     '✅', 'Done'],
-        'fail':      ['badge-fail',     '❌', 'Fail'],
-        'partial':   ['badge-partial',  '🔶', 'Partial'],
-        'not found': ['badge-notfound', '—',  'Not Found'],
-      };
-      const [cls, icon, lbl] = map[status] || map['not found'];
+      const map = { done:['badge-done','✅','Done'], fail:['badge-fail','❌','Fail'], partial:['badge-partial','🔶','Partial'], 'not found':['badge-notfound','—','Not Found'] };
+      const [cls,icon,lbl] = map[status] || map['not found'];
       return `<span class="badge ${cls}">${icon} ${lbl}</span>`;
     }
 
-    // ── Summary ────────────────────────────────────────────────
     function updateSummary(rows) {
       summaryStrip.classList.add('visible');
-      animateCount('sumTotal',    rows.length);
-      animateCount('sumDone',     rows.filter(r => r.status === 'done').length);
-      animateCount('sumFail',     rows.filter(r => r.status === 'fail').length);
-      animateCount('sumNotFound', rows.filter(r => r.status === 'not found').length);
+      animateCount('sumTotal', rows.length);
+      animateCount('sumDone',  rows.filter(r=>r.status==='done').length);
+      animateCount('sumFail',  rows.filter(r=>r.status==='fail').length);
+      animateCount('sumNotFound', rows.filter(r=>r.status==='not found').length);
     }
-
     function animateCount(id, target) {
       const el = document.getElementById(id);
-      const start = parseInt(el.textContent) || 0;
-      const dur = 500;
-      const t0  = performance.now();
-      const tick = (now) => {
-        const p = Math.min((now - t0) / dur, 1);
-        el.textContent = Math.round(start + (target - start) * easeOut(p));
-        if (p < 1) requestAnimationFrame(tick);
-      };
+      const start = parseInt(el.textContent) || 0, dur = 500, t0 = performance.now();
+      const tick = now => { const p = Math.min((now-t0)/dur,1); el.textContent = Math.round(start+(target-start)*easeOut(p)); if(p<1) requestAnimationFrame(tick); };
       requestAnimationFrame(tick);
     }
-    function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+    function easeOut(t) { return 1-Math.pow(1-t,3); }
 
-    // ── Sorting ────────────────────────────────────────────────
+    // Sorting
     document.querySelectorAll('th[data-col]').forEach(th => {
       th.addEventListener('click', () => {
         const col = th.dataset.col;
-        if (sortCol === col) sortDir *= -1;
-        else { sortCol = col; sortDir = 1; }
+        if (sortCol===col) sortDir*=-1; else { sortCol=col; sortDir=1; }
         document.querySelectorAll('th').forEach(t => t.classList.remove('sorted'));
         th.classList.add('sorted');
-        th.querySelector('.sort-icon').textContent = sortDir === 1 ? '↑' : '↓';
+        th.querySelector('.sort-icon').textContent = sortDir===1?'↑':'↓';
         renderResults(currentResults);
       });
     });
 
-    // ── Filtering ──────────────────────────────────────────────
+    // Filtering
     document.querySelectorAll('.filter-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        document.querySelectorAll('.filter-btn').forEach(b => {
-          b.classList.remove('active', 'done-active', 'fail-active');
-        });
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active','done-active','fail-active'));
         activeFilter = btn.dataset.filter;
         btn.classList.add('active');
-        if (activeFilter === 'done') btn.classList.add('done-active');
-        if (activeFilter === 'fail') btn.classList.add('fail-active');
         renderResults(currentResults);
       });
     });
 
-    // ── Export CSV ─────────────────────────────────────────────
+    // Export
     document.getElementById('exportCsvBtn').addEventListener('click', async () => {
-      try {
-        const res = await fetch('/export/csv');
-        if (!res.ok) { showToast('No results to export', 'error'); return; }
-        const blob = await res.blob();
-        triggerDownload(blob, 'results.csv');
-        showToast('CSV exported');
-      } catch { showToast('Export failed', 'error'); }
+      try { const res = await fetch('/export/csv'); if(!res.ok){showToast('No results','error');return;} triggerDownload(await res.blob(),'results.csv'); showToast('CSV exported'); } catch{showToast('Export failed','error');}
     });
-
-    // ── Export JSON ────────────────────────────────────────────
     document.getElementById('exportJsonBtn').addEventListener('click', async () => {
-      try {
-        const res = await fetch('/export/json');
-        if (!res.ok) { showToast('No results to export', 'error'); return; }
-        const blob = await res.blob();
-        triggerDownload(blob, 'results.json');
-        showToast('JSON exported');
-      } catch { showToast('Export failed', 'error'); }
+      try { const res = await fetch('/export/json'); if(!res.ok){showToast('No results','error');return;} triggerDownload(await res.blob(),'results.json'); showToast('JSON exported'); } catch{showToast('Export failed','error');}
     });
-
-    // ── Copy to clipboard (email=result) ──────────────────────
     document.getElementById('copyClipBtn').addEventListener('click', () => {
-      if (!currentResults.length) { showToast('No results to copy', 'error'); return; }
-      const text = currentResults
-        .map(r => `${r.email}=${r['检查结果'] || r.status}`)
-        .join('\n');
-      navigator.clipboard.writeText(text)
-        .then(() => showToast('Copied to clipboard'))
-        .catch(() => showToast('Clipboard access denied', 'error'));
+      if (!currentResults.length) { showToast('No results', 'error'); return; }
+      const text = currentResults.map(r => r.email + '=' + (r.result || r.status)).join('\n');
+      navigator.clipboard.writeText(text).then(()=>showToast('Copied')).catch(()=>showToast('Clipboard denied','error'));
     });
-
     function triggerDownload(blob, filename) {
-      const url = URL.createObjectURL(blob);
-      const a   = document.createElement('a');
-      a.href = url; a.download = filename; a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      const url = URL.createObjectURL(blob), a = document.createElement('a');
+      a.href=url; a.download=filename; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000);
     }
 
-    // ── History ────────────────────────────────────────────────
+    // History
     function saveHistory(results) {
       const stored = getHistory();
-      stored.unshift({
-        ts: new Date().toLocaleString(),
-        count: results.length,
-        results,
-      });
-      const trimmed = stored.slice(0, 5);
+      stored.unshift({ ts: new Date().toLocaleString(), count: results.length, results });
+      const trimmed = stored.slice(0,5);
       try { localStorage.setItem(HISTORY_KEY, JSON.stringify(trimmed)); } catch {}
       renderHistory(trimmed);
     }
-
-    function getHistory() {
-      try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; } catch { return []; }
-    }
-
+    function getHistory() { try { return JSON.parse(localStorage.getItem(HISTORY_KEY))||[]; } catch { return []; } }
     function renderHistory(hist) {
       const list = document.getElementById('history-list');
-      if (!hist.length) {
-        list.innerHTML = '<span style="color:var(--text-dim);font-size:13px">No history yet.</span>';
-        return;
-      }
-      list.innerHTML = hist.map((h, i) =>
-        `<button class="history-chip" data-idx="${i}">
-          <span>🔍 ${h.count} emails</span>
-          <span class="htime">${h.ts}</span>
-        </button>`
+      if (!hist.length) { list.innerHTML='<span style="color:var(--text-dim);font-size:13px">No history yet.</span>'; return; }
+      list.innerHTML = hist.map((h,i) =>
+        `<button class="history-chip" data-idx="${i}"><span>🔍 ${h.count} emails</span><span class="htime">${h.ts}</span></button>`
       ).join('');
       list.querySelectorAll('.history-chip').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -945,17 +912,320 @@
       });
     }
 
-    // Init history on page load
-    renderHistory(getHistory());
+    // ════════════════════════════════════════════════════════════
+    // ADMIN MODAL
+    // ════════════════════════════════════════════════════════════
 
-    // ── XSS-safe helper ───────────────────────────────────────
-    function escHtml(str) {
-      return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+    const adminModal     = document.getElementById('adminModal');
+    const loginForm      = document.getElementById('loginForm');
+    const magicForm      = document.getElementById('magicForm');
+    const forceChangeForm= document.getElementById('forceChangeForm');
+
+    document.getElementById('adminLoginBtn').addEventListener('click', () => {
+      loginForm.style.display = ''; magicForm.style.display = 'none'; forceChangeForm.style.display = 'none';
+      adminModal.classList.add('open');
+      document.getElementById('loginUser').focus();
+    });
+    document.getElementById('modalCloseBtn').addEventListener('click', () => adminModal.classList.remove('open'));
+    adminModal.addEventListener('click', e => { if (e.target === adminModal) adminModal.classList.remove('open'); });
+    document.getElementById('magicKeyToggle').addEventListener('click', e => { e.preventDefault(); loginForm.style.display='none'; magicForm.style.display=''; });
+    document.getElementById('normalLoginToggle').addEventListener('click', e => { e.preventDefault(); magicForm.style.display='none'; loginForm.style.display=''; });
+
+    async function doLogin(username, password) {
+      const res  = await fetch('/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username, password}) });
+      const data = await res.json();
+      if (!res.ok) { showToast(data.error || 'Login failed', 'error'); return; }
+      if (data.forceChange) {
+        document.getElementById('forceAdminId').value = data.adminId;
+        loginForm.style.display='none'; magicForm.style.display='none'; forceChangeForm.style.display='';
+        return;
+      }
+      saveToken(data.token);
+      adminModal.classList.remove('open');
+      openDashboard(data.isMagicKey, data.username || username);
+      showToast('Welcome, ' + (data.username || username));
     }
+
+    document.getElementById('loginSubmitBtn').addEventListener('click', () => {
+      doLogin(document.getElementById('loginUser').value.trim(), document.getElementById('loginPass').value);
+    });
+    document.getElementById('loginPass').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('loginSubmitBtn').click(); });
+
+    document.getElementById('magicSubmitBtn').addEventListener('click', () => {
+      doLogin(document.getElementById('magicUser').value.trim(), document.getElementById('magicKeyInput').value);
+    });
+
+    document.getElementById('changePassBtn').addEventListener('click', async () => {
+      const adminId = document.getElementById('forceAdminId').value;
+      const p1 = document.getElementById('newPass1').value;
+      const p2 = document.getElementById('newPass2').value;
+      if (p1 !== p2) { showToast('Passwords do not match', 'error'); return; }
+      if (p1.length < 8) { showToast('Password must be ≥ 8 characters', 'error'); return; }
+      const res  = await fetch('/auth/change-password', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({adminId, newPassword:p1}) });
+      const data = await res.json();
+      if (!res.ok) { showToast(data.error || 'Error', 'error'); return; }
+      saveToken(data.token);
+      adminModal.classList.remove('open');
+      openDashboard(false, 'admin');
+      showToast('Password changed — welcome!');
+    });
+
+    // ════════════════════════════════════════════════════════════
+    // ADMIN DASHBOARD
+    // ════════════════════════════════════════════════════════════
+
+    const adminDash = document.getElementById('adminDash');
+
+    function openDashboard(isMagicKey, username) {
+      document.getElementById('dashUsername').textContent = username || '';
+      document.getElementById('dashMagicBadge').style.display = isMagicKey ? 'flex' : 'none';
+      document.getElementById('magicBadge').classList.toggle('visible', !!isMagicKey);
+      adminDash.classList.add('open');
+      loadTab('files');
+    }
+
+    document.getElementById('dashCloseBtn').addEventListener('click', () => adminDash.classList.remove('open'));
+    document.getElementById('dashLogoutBtn').addEventListener('click', async () => {
+      try { await fetch('/auth/logout', { method:'POST', headers: authHeaders() }); } catch {}
+      clearToken();
+      adminDash.classList.remove('open');
+      document.getElementById('magicBadge').classList.remove('visible');
+      showToast('Logged out');
+    });
+
+    // Tab nav
+    document.querySelectorAll('.dash-tab').forEach(tab => {
+      tab.addEventListener('click', () => loadTab(tab.dataset.tab));
+    });
+    function loadTab(name) {
+      document.querySelectorAll('.dash-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+      document.querySelectorAll('.dash-panel').forEach(p => p.classList.toggle('active', p.id === 'panel' + name.charAt(0).toUpperCase() + name.slice(1)));
+      const loaders = { files: loadAdminFiles, sessions: loadSessions, cache: loadCache, settings: loadSettings, audit: loadAudit };
+      if (loaders[name]) loaders[name]();
+    }
+
+    // ── Files tab ────────────────────────────────────────────────
+    document.getElementById('showAddFormBtn').addEventListener('click', () => {
+      document.getElementById('addFileForm').style.display = '';
+    });
+    document.getElementById('cancelAddFormBtn').addEventListener('click', () => {
+      document.getElementById('addFileForm').style.display = 'none';
+    });
+    document.getElementById('refreshFilesBtn').addEventListener('click', loadAdminFiles);
+
+    document.getElementById('fSourceType').addEventListener('change', function() {
+      const isExcel = this.value === 'excel';
+      document.getElementById('fRefGroup').style.display = isExcel ? 'none' : '';
+      document.getElementById('fUploadGroup').style.display = isExcel ? '' : 'none';
+    });
+
+    document.getElementById('addFileSubmitBtn').addEventListener('click', async () => {
+      const sourceType = document.getElementById('fSourceType').value;
+      const fd = new FormData();
+      fd.append('label',          document.getElementById('fLabel').value.trim());
+      fd.append('source_type',    sourceType);
+      fd.append('sheet_tab',      document.getElementById('fSheetTab').value.trim());
+      fd.append('column_email',   document.getElementById('fColEmail').value.trim());
+      fd.append('column_result',  document.getElementById('fColResult').value.trim());
+      fd.append('cache_ttl_secs', document.getElementById('fTtl').value);
+      if (sourceType === 'excel') {
+        const f = document.getElementById('fFile').files[0];
+        if (!f) { showToast('Select an Excel file', 'error'); return; }
+        fd.append('file', f);
+      } else {
+        fd.append('source_ref', document.getElementById('fSourceRef').value.trim());
+      }
+      try {
+        const res  = await fetch('/admin/files', { method:'POST', headers: authHeaders(), body: fd });
+        const data = await res.json();
+        if (!res.ok) { showToast(data.error || 'Error', 'error'); return; }
+        showToast('Source added');
+        document.getElementById('addFileForm').style.display = 'none';
+        loadAdminFiles();
+        loadPublicFiles();
+      } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+      }
+    });
+
+    async function loadAdminFiles() {
+      const tbody = document.getElementById('filesBody');
+      try {
+        const res   = await fetch('/admin/files', { headers: authHeaders() });
+        const files = await res.json();
+        if (!files.length) { tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text-dim)">No sources registered yet.</td></tr>'; return; }
+        tbody.innerHTML = files.map(f => `
+          <tr>
+            <td><strong>${escHtml(f.label)}</strong></td>
+            <td><span class="badge badge-${escHtml(f.source_type)}">${escHtml(f.source_type)}</span></td>
+            <td style="font-family:var(--mono);font-size:11px">${escHtml(f.column_email)} / ${escHtml(f.column_result)}</td>
+            <td>${f.total_rows ?? '—'}</td>
+            <td>${f.cache_ttl_secs}s</td>
+            <td><button class="toggle ${f.is_active?'on':''}" data-id="${f.id}" data-active="${f.is_active}"></button></td>
+            <td style="font-size:11px;color:var(--text-dim)">${f.last_refreshed ? new Date(f.last_refreshed).toLocaleString() : '—'}</td>
+            <td style="display:flex;gap:6px">
+              <button class="btn btn-outline btn-sm refresh-btn" data-id="${f.id}">↻</button>
+              <button class="btn btn-danger btn-sm delete-btn" data-id="${f.id}">🗑</button>
+            </td>
+          </tr>`).join('');
+
+        tbody.querySelectorAll('.toggle').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const newActive = btn.dataset.active === 'true' ? false : true;
+            await fetch('/admin/files/' + btn.dataset.id, { method:'PATCH', headers:{...authHeaders(),'Content-Type':'application/json'}, body:JSON.stringify({is_active:newActive}) });
+            loadAdminFiles(); loadPublicFiles();
+          });
+        });
+        tbody.querySelectorAll('.refresh-btn').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            btn.textContent = '⏳';
+            const res = await fetch('/admin/files/' + btn.dataset.id + '/refresh', { method:'POST', headers: authHeaders() });
+            const d   = await res.json();
+            showToast(res.ok ? 'Refreshed — ' + d.rowCount + ' rows' : d.error, res.ok ? 'success' : 'error');
+            loadAdminFiles();
+          });
+        });
+        tbody.querySelectorAll('.delete-btn').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            if (!confirm('Delete this source? This cannot be undone.')) return;
+            await fetch('/admin/files/' + btn.dataset.id, { method:'DELETE', headers: authHeaders() });
+            showToast('Deleted');
+            loadAdminFiles(); loadPublicFiles();
+          });
+        });
+      } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="8" style="color:var(--red)">Error: ' + escHtml(err.message) + '</td></tr>';
+      }
+    }
+
+    // ── Sessions tab ──────────────────────────────────────────────
+    document.getElementById('refreshSessionsBtn').addEventListener('click', loadSessions);
+    async function loadSessions() {
+      const tbody = document.getElementById('sessionsBody');
+      try {
+        const res  = await fetch('/admin/sessions', { headers: authHeaders() });
+        const rows = await res.json();
+        if (!rows.length) { tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text-dim)">No sessions yet.</td></tr>'; return; }
+        tbody.innerHTML = rows.map(r => `
+          <tr>
+            <td style="font-size:11px">${new Date(r.ran_at).toLocaleString()}</td>
+            <td style="font-size:11px">${escHtml(r.file_id || '—')}</td>
+            <td>${r.emails_checked}</td>
+            <td style="color:var(--green)">${r.done_count}</td>
+            <td style="color:var(--red)">${r.fail_count}</td>
+            <td style="color:var(--yellow)">${r.not_found_count}</td>
+            <td style="font-size:11px;color:var(--text-dim)">${escHtml(r.ip_address || '—')}</td>
+            <td style="font-size:11px">${escHtml(r.ran_by || 'anon')}</td>
+          </tr>`).join('');
+      } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="8" style="color:var(--red)">Error: ' + escHtml(err.message) + '</td></tr>';
+      }
+    }
+
+    // ── Cache tab ─────────────────────────────────────────────────
+    document.getElementById('refreshCacheBtn').addEventListener('click', loadCache);
+    document.getElementById('flushAllCacheBtn').addEventListener('click', async () => {
+      await fetch('/admin/cache/flush', { method:'POST', headers: authHeaders() });
+      showToast('All caches flushed');
+      loadCache();
+    });
+    async function loadCache() {
+      const grid = document.getElementById('cacheGrid');
+      try {
+        const res   = await fetch('/admin/cache/stats', { headers: authHeaders() });
+        const stats = await res.json();
+        if (!stats.length) { grid.innerHTML='<div style="color:var(--text-dim);font-size:13px">Cache is empty.</div>'; return; }
+        grid.innerHTML = stats.map(s => `
+          <div class="cache-card">
+            <h4>${escHtml(s.fileId)}</h4>
+            <p>Rows: <strong>${s.rowCount}</strong></p>
+            <p>Loaded: ${new Date(s.loadedAt).toLocaleString()}</p>
+            <p>Expires: ${new Date(s.expiresAt).toLocaleString()}</p>
+            <button class="btn btn-danger btn-sm flush-one-btn" data-id="${escHtml(s.fileId)}" style="margin-top:10px">Flush</button>
+          </div>`).join('');
+        grid.querySelectorAll('.flush-one-btn').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            await fetch('/admin/files/' + encodeURIComponent(btn.dataset.id) + '/refresh', { method:'POST', headers: authHeaders() });
+            showToast('Cache cleared');
+            loadCache();
+          });
+        });
+      } catch (err) {
+        grid.innerHTML = '<div style="color:var(--red)">Error: ' + escHtml(err.message) + '</div>';
+      }
+    }
+
+    // ── Settings tab ──────────────────────────────────────────────
+    document.getElementById('refreshCacheBtn'); // already wired
+    const settingsMap = {};
+    async function loadSettings() {
+      const grid = document.getElementById('settingsGrid');
+      try {
+        const res      = await fetch('/admin/settings', { headers: authHeaders() });
+        const settings = await res.json();
+        for (const s of settings) settingsMap[s.key] = s.value;
+        grid.innerHTML = settings.map(s => `
+          <div class="setting-card">
+            <label>${escHtml(s.key)}</label>
+            <input type="text" id="setting_${escHtml(s.key)}" value="${escHtml(s.value ?? '')}" />
+          </div>`).join('');
+      } catch (err) {
+        grid.innerHTML = '<div style="color:var(--red)">Error: ' + escHtml(err.message) + '</div>';
+      }
+    }
+    document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
+      const updates = {};
+      document.querySelectorAll('[id^="setting_"]').forEach(inp => {
+        const key = inp.id.replace('setting_','');
+        updates[key] = inp.value;
+      });
+      const res = await fetch('/admin/settings', { method:'PATCH', headers:{...authHeaders(),'Content-Type':'application/json'}, body:JSON.stringify(updates) });
+      const d   = await res.json();
+      showToast(res.ok ? 'Settings saved' : (d.error || 'Error'), res.ok ? 'success' : 'error');
+    });
+
+    document.getElementById('changePassDashBtn').addEventListener('click', async () => {
+      const cur  = document.getElementById('cpCurrent').value;
+      const np1  = document.getElementById('cpNew1').value;
+      const np2  = document.getElementById('cpNew2').value;
+      if (np1 !== np2) { showToast('Passwords do not match', 'error'); return; }
+      // Decode adminId from JWT token (best-effort)
+      let adminId = null;
+      try {
+        const tok = adminToken || localStorage.getItem(TOKEN_KEY) || '';
+        const payload = JSON.parse(atob(tok.split('.')[1]));
+        adminId = payload.adminId;
+      } catch {}
+      if (!adminId) { showToast('Cannot determine admin ID — please re-login', 'error'); return; }
+      const res  = await fetch('/auth/change-password', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ adminId, currentPassword: cur, newPassword: np1 }) });
+      const data = await res.json();
+      if (!res.ok) { showToast(data.error || 'Error', 'error'); return; }
+      saveToken(data.token);
+      showToast('Password changed');
+    });
+
+    // ── Audit tab ─────────────────────────────────────────────────
+    document.getElementById('refreshAuditBtn').addEventListener('click', loadAudit);
+    async function loadAudit() {
+      const tbody = document.getElementById('auditBody');
+      try {
+        const res  = await fetch('/admin/audit', { headers: authHeaders() });
+        const rows = await res.json();
+        if (!rows.length) { tbody.innerHTML='<tr><td colspan="4" style="text-align:center;padding:30px;color:var(--text-dim)">No audit entries yet.</td></tr>'; return; }
+        tbody.innerHTML = rows.map(r => `
+          <tr>
+            <td style="font-size:11px">${new Date(r.created_at).toLocaleString()}</td>
+            <td><span class="badge badge-notfound">${escHtml(r.action)}</span></td>
+            <td style="font-size:11px;color:var(--text-dim)">${escHtml(r.ip_address || '—')}</td>
+            <td style="font-size:11px;font-family:var(--mono);max-width:300px;overflow:hidden;text-overflow:ellipsis">${escHtml(r.detail ? JSON.stringify(r.detail) : '—')}</td>
+          </tr>`).join('');
+      } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="4" style="color:var(--red)">Error: ' + escHtml(err.message) + '</td></tr>';
+      }
+    }
+
+    // ── Start ──────────────────────────────────────────────────
+    init();
   })();
   </script>
 </body>

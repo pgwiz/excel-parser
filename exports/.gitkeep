@@ -1,0 +1,3 @@
+# keep exports directory tracked but ignore generated files
+*
+!.gitkeep
