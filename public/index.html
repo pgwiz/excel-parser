@@ -143,6 +143,12 @@
     /* Export bar */
     .export-bar { position:fixed;bottom:0;left:0;right:0;background:rgba(5,10,26,0.85);border-top:1px solid var(--glass-border);backdrop-filter:blur(20px);padding:14px 24px;display:flex;align-items:center;justify-content:center;gap:12px;z-index:100;flex-wrap:wrap; }
     body.light .export-bar { background:rgba(200,217,240,0.88); }
+    /* Custom-copy popup */
+    .copy-popup { position:absolute;bottom:calc(100% + 8px);right:0;background:var(--bg2);border:1px solid var(--glass-border);border-radius:12px;padding:14px 16px;min-width:240px;z-index:200;box-shadow:0 8px 32px rgba(0,0,0,0.5); }
+    .copy-popup-title { font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--accent);margin-bottom:10px; }
+    .copy-opt { display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:13px;color:var(--text); }
+    .copy-opt input { accent-color:var(--accent);cursor:pointer; }
+    .copy-opt code { font-family:var(--mono);font-size:11px;color:var(--text-dim);margin-left:2px; }
 
     /* History */
     #history-list { display:flex;flex-wrap:wrap;gap:8px; }
@@ -356,6 +362,15 @@
     <button class="btn btn-outline" id="exportCsvBtn">⬇️ CSV</button>
     <button class="btn btn-outline" id="exportJsonBtn">⬇️ JSON</button>
     <button class="btn btn-outline" id="copyClipBtn">📋 Copy</button>
+    <div style="position:relative">
+      <button class="btn btn-outline" id="customCopyBtn">✂️ Custom Copy</button>
+      <div id="copyPopup" class="copy-popup" style="display:none">
+        <div class="copy-popup-title">Copy Format</div>
+        <label class="copy-opt" for="copyFmtFull"><input type="radio" name="copyFmt" id="copyFmtFull" value="full"> Full <code>email=status,row#</code></label>
+        <label class="copy-opt" for="copyFmtStatusRow"><input type="radio" name="copyFmt" id="copyFmtStatusRow" value="status_row"> Status + Row# <code>status,row#</code></label>
+        <button class="btn btn-primary btn-sm" id="copyPopupApplyBtn" style="margin-top:10px;width:100%">Copy</button>
+      </div>
+    </div>
   </div>
 
   <!-- ══════════════════════════════════════ ADMIN LOGIN MODAL ═════════════ -->
@@ -892,8 +907,47 @@
     });
     document.getElementById('copyClipBtn').addEventListener('click', () => {
       if (!currentResults.length) { showToast('No results', 'error'); return; }
-      const text = currentResults.map(r => r.email + '=' + (r.result || r.status)).join('\n');
+      const text = currentResults.map(r => r.email + '=' + (r.result || r.status) + (r.rowNumber != null ? ',' + r.rowNumber : '')).join('\n');
       navigator.clipboard.writeText(text).then(()=>showToast('Copied')).catch(()=>showToast('Clipboard denied','error'));
+    });
+
+    // ── Custom Copy (format picker, preference cached 1 year) ────────────
+    const COPY_PREF_KEY  = 'ev_copy_fmt';
+    const ONE_YEAR_MS    = 365 * 24 * 60 * 60 * 1000;
+    function getCopyPref() {
+      try { const s = JSON.parse(localStorage.getItem(COPY_PREF_KEY)); if (s && s.fmt && Date.now() < s.exp) return s.fmt; } catch {}
+      return 'full';
+    }
+    function setCopyPref(fmt) {
+      try { localStorage.setItem(COPY_PREF_KEY, JSON.stringify({ fmt, exp: Date.now() + ONE_YEAR_MS })); } catch {}
+    }
+    function formatForCopy(r, fmt) {
+      const row = r.rowNumber != null ? ',' + r.rowNumber : '';
+      return fmt === 'status_row' ? (r.result || r.status) + row : r.email + '=' + (r.result || r.status) + row;
+    }
+    function syncCopyRadios() {
+      const pref = getCopyPref();
+      document.querySelectorAll('input[name="copyFmt"]').forEach(radio => { radio.checked = radio.value === pref; });
+    }
+    const customCopyBtn = document.getElementById('customCopyBtn');
+    const copyPopup     = document.getElementById('copyPopup');
+    // Pre-select saved preference
+    syncCopyRadios();
+    customCopyBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      syncCopyRadios();
+      copyPopup.style.display = copyPopup.style.display === 'none' ? 'block' : 'none';
+    });
+    document.addEventListener('click', e => {
+      if (!customCopyBtn.contains(e.target) && !copyPopup.contains(e.target)) copyPopup.style.display = 'none';
+    });
+    document.getElementById('copyPopupApplyBtn').addEventListener('click', () => {
+      if (!currentResults.length) { showToast('No results', 'error'); copyPopup.style.display = 'none'; return; }
+      const fmt = document.querySelector('input[name="copyFmt"]:checked')?.value || 'full';
+      setCopyPref(fmt);
+      const text = currentResults.map(r => formatForCopy(r, fmt)).join('\n');
+      navigator.clipboard.writeText(text).then(()=>showToast('Copied')).catch(()=>showToast('Clipboard denied','error'));
+      copyPopup.style.display = 'none';
     });
     function triggerDownload(blob, filename) {
       const url = URL.createObjectURL(blob), a = document.createElement('a');
