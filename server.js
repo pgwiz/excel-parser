@@ -15,7 +15,7 @@ const fs           = require('fs');
 const { signToken, requireAdmin } = require('./auth');
 const db    = require('./db');
 const cache = require('./cache');
-const { readSheetData } = require('./google');
+const { readSheetData, previewColumns } = require('./google');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -88,7 +88,16 @@ const upload = multer({
   },
 });
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// Memory-storage uploader used only for the column-preview endpoint
+// (keeps the preview ephemeral — no file is written to disk).
+const previewUpload = multer({
+  storage: multer.memoryStorage(),
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (ext === '.xlsx' || ext === '.xls') return cb(null, true);
+    cb(new Error('Only .xlsx/.xls files are allowed'));
+  },
+});
 
 async function getEmailMap(file) {
   let map = cache.get(file.id);
@@ -439,6 +448,30 @@ app.get('/admin/cache/stats', requireAdmin, (req, res) => {
 app.post('/admin/cache/flush', requireAdmin, (req, res) => {
   cache.invalidateAll();
   res.json({ success: true });
+});
+
+// POST /admin/files/preview-columns — read header row for column-picker UI
+// Accepts: source_type, optional `file` (excel in-memory), source_ref, sheet_tab
+app.post('/admin/files/preview-columns', requireAdmin, previewUpload.single('file'), async (req, res) => {
+  try {
+    const { source_type, source_ref, sheet_tab } = req.body || {};
+    if (!source_type) return res.status(400).json({ error: 'source_type is required' });
+    if (source_type === 'excel' && !req.file && !source_ref) {
+      return res.status(400).json({ error: 'Excel file or source_ref is required' });
+    }
+    if (source_type !== 'excel' && !source_ref) {
+      return res.status(400).json({ error: 'source_ref is required' });
+    }
+    const columns = await previewColumns({
+      source_type,
+      source_ref: source_ref || null,
+      sheet_tab: sheet_tab || null,
+      buffer: req.file ? req.file.buffer : null,
+    });
+    res.json({ columns });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // POST /admin/upload — upload Excel file for excel-type file registrations

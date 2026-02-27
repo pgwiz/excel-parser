@@ -460,8 +460,23 @@
               <label>Sheet Tab (optional)</label>
               <input type="text" id="fSheetTab" placeholder="Sheet1" />
             </div>
-            <div class="form-group"><label>Email Column</label><input type="text" id="fColEmail" placeholder="邮箱 or B" /></div>
-            <div class="form-group"><label>Result Column</label><input type="text" id="fColResult" placeholder="检查结果 or E" /></div>
+          </div>
+          <!-- Column picker row -->
+          <div style="display:flex;align-items:center;gap:10px;margin:14px 0 6px">
+            <button class="btn btn-outline btn-sm" id="loadColumnsBtn" type="button">🔍 Load Columns</button>
+            <span id="colPreviewBadge" style="display:none;font-size:12px;color:var(--green);background:rgba(34,211,168,0.1);border:1px solid rgba(34,211,168,0.3);border-radius:20px;padding:3px 12px"></span>
+          </div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Email Column</label>
+              <select id="fColEmailSel" style="display:none"></select>
+              <input type="text" id="fColEmail" placeholder="邮箱 or B" />
+            </div>
+            <div class="form-group">
+              <label>Result Column</label>
+              <select id="fColResultSel" style="display:none"></select>
+              <input type="text" id="fColResult" placeholder="检查结果 or E" />
+            </div>
             <div class="form-group"><label>Cache TTL (seconds)</label><input type="number" id="fTtl" value="300" min="30" /></div>
           </div>
           <div style="display:flex;gap:10px;margin-top:16px">
@@ -1010,6 +1025,7 @@
     });
     document.getElementById('cancelAddFormBtn').addEventListener('click', () => {
       document.getElementById('addFileForm').style.display = 'none';
+      resetColPicker();
     });
     document.getElementById('refreshFilesBtn').addEventListener('click', loadAdminFiles);
 
@@ -1017,16 +1033,118 @@
       const isExcel = this.value === 'excel';
       document.getElementById('fRefGroup').style.display = isExcel ? 'none' : '';
       document.getElementById('fUploadGroup').style.display = isExcel ? '' : 'none';
+      resetColPicker();
     });
+
+    // Reset column picker to manual text-input state
+    function resetColPicker() {
+      ['fColEmailSel', 'fColResultSel'].forEach(id => {
+        const sel = document.getElementById(id);
+        sel.style.display = 'none';
+        sel.innerHTML = '';
+      });
+      document.getElementById('fColEmail').style.display = '';
+      document.getElementById('fColResult').style.display = '';
+      const badge = document.getElementById('colPreviewBadge');
+      badge.style.display = 'none';
+      badge.textContent = '';
+    }
+
+    // Populate column selects with data from the preview endpoint
+    function applyColPicker(columns) {
+      ['fColEmailSel', 'fColResultSel'].forEach((selId, i) => {
+        const sel = document.getElementById(selId);
+        sel.innerHTML = '';
+        // blank "select…" option
+        const blank = document.createElement('option');
+        blank.value = '';
+        blank.textContent = '— select column —';
+        sel.appendChild(blank);
+        // one option per detected column: "A (1) — 邮箱"
+        columns.forEach(col => {
+          const opt = document.createElement('option');
+          opt.value = col.name || col.letter;
+          const label = col.name ? `${col.letter} (${col.index}) — ${col.name}` : `${col.letter} (${col.index})`;
+          opt.textContent = label;
+          sel.appendChild(opt);
+        });
+        // manual-entry fallback
+        const manual = document.createElement('option');
+        manual.value = '__manual__';
+        manual.textContent = '✏ Type manually…';
+        sel.appendChild(manual);
+
+        sel.style.display = '';
+        const txtEl = document.getElementById(selId === 'fColEmailSel' ? 'fColEmail' : 'fColResult');
+        sel.onchange = function() {
+          if (this.value === '__manual__') {
+            this.style.display = 'none';
+            txtEl.style.display = '';
+            txtEl.value = '';
+            txtEl.focus();
+          } else {
+            txtEl.style.display = 'none';
+            txtEl.value = this.value;
+          }
+        };
+        // hide the text input initially now that the select is active
+        txtEl.style.display = 'none';
+        txtEl.value = '';
+      });
+
+      const badge = document.getElementById('colPreviewBadge');
+      badge.textContent = `✓ ${columns.length} column${columns.length !== 1 ? 's' : ''} detected`;
+      badge.style.display = '';
+    }
+
+    document.getElementById('loadColumnsBtn').addEventListener('click', async () => {
+      const sourceType = document.getElementById('fSourceType').value;
+      const fd = new FormData();
+      fd.append('source_type', sourceType);
+      fd.append('sheet_tab', document.getElementById('fSheetTab').value.trim());
+      if (sourceType === 'excel') {
+        const f = document.getElementById('fFile').files[0];
+        if (!f) { showToast('Select an Excel file first', 'error'); return; }
+        fd.append('file', f);
+      } else {
+        const ref = document.getElementById('fSourceRef').value.trim();
+        if (!ref) { showToast('Enter a Sheet / Drive ID first', 'error'); return; }
+        fd.append('source_ref', ref);
+      }
+      document.getElementById('loadColumnsBtn').disabled = true;
+      document.getElementById('loadColumnsBtn').textContent = '⏳ Loading…';
+      try {
+        const res  = await fetch('/admin/files/preview-columns', { method: 'POST', headers: authHeaders(), body: fd });
+        const data = await res.json();
+        if (!res.ok) { showToast(data.error || 'Failed to load columns', 'error'); return; }
+        applyColPicker(data.columns);
+      } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+      } finally {
+        document.getElementById('loadColumnsBtn').disabled = false;
+        document.getElementById('loadColumnsBtn').textContent = '🔍 Load Columns';
+      }
+    });
+
+    // When the excel file changes, reset picker so user loads fresh columns
+    document.getElementById('fFile').addEventListener('change', resetColPicker);
+    document.getElementById('fSourceRef').addEventListener('input', resetColPicker);
 
     document.getElementById('addFileSubmitBtn').addEventListener('click', async () => {
       const sourceType = document.getElementById('fSourceType').value;
+      // Resolve email/result column values: prefer select (if visible) over text input
+      function colVal(selId, txtId) {
+        const sel = document.getElementById(selId);
+        const txt = document.getElementById(txtId);
+        if (sel.style.display !== 'none' && sel.value && sel.value !== '__manual__') return sel.value;
+        return txt.value.trim();
+      }
       const fd = new FormData();
       fd.append('label',          document.getElementById('fLabel').value.trim());
       fd.append('source_type',    sourceType);
       fd.append('sheet_tab',      document.getElementById('fSheetTab').value.trim());
-      fd.append('column_email',   document.getElementById('fColEmail').value.trim());
-      fd.append('column_result',  document.getElementById('fColResult').value.trim());
+      fd.append('column_email',   colVal('fColEmailSel', 'fColEmail'));
+      fd.append('column_result',  colVal('fColResultSel', 'fColResult'));
       fd.append('cache_ttl_secs', document.getElementById('fTtl').value);
       if (sourceType === 'excel') {
         const f = document.getElementById('fFile').files[0];
@@ -1043,6 +1161,7 @@
         if (!res.ok) { showToast(data.error || 'Error', 'error'); return; }
         showToast('Source added');
         document.getElementById('addFileForm').style.display = 'none';
+        resetColPicker();
         loadAdminFiles();
         loadPublicFiles();
       } catch (err) {

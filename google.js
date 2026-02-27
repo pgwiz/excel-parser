@@ -188,4 +188,79 @@ async function readSheetData(file) {
   }
 }
 
-module.exports = { readSheetData };
+/**
+ * Convert a 1-based column number to a spreadsheet column letter (A, B, …, Z, AA, …).
+ */
+function colToLetter(n) {
+  let s = '';
+  while (n > 0) {
+    n--;
+    s = String.fromCharCode(65 + (n % 26)) + s;
+    n = Math.floor(n / 26);
+  }
+  return s;
+}
+
+/**
+ * Read only the header row from any source type.
+ *
+ * @param {object} opts
+ * @param {string}  opts.source_type - 'excel' | 'sheets' | 'drive'
+ * @param {string}  [opts.source_ref] - Google Sheet/Drive ID (for sheets/drive)
+ * @param {string}  [opts.sheet_tab]  - Optional worksheet / tab name
+ * @param {Buffer}  [opts.buffer]     - Raw file buffer (for excel uploaded in-memory)
+ *
+ * @returns {Promise<Array<{index:number, letter:string, name:string}>>}
+ */
+async function previewColumns({ source_type, source_ref, sheet_tab, buffer }) {
+  const columns = [];
+
+  if (source_type === 'excel') {
+    const workbook = new ExcelJS.Workbook();
+    if (buffer) {
+      await workbook.xlsx.load(buffer);
+    } else {
+      const filePath = path.join(UPLOADS_DIR, path.basename(source_ref));
+      if (!fs.existsSync(filePath)) throw new Error(`Excel file not found: ${source_ref}`);
+      await workbook.xlsx.readFile(filePath);
+    }
+    const sheet = sheet_tab
+      ? workbook.getWorksheet(sheet_tab) || workbook.worksheets[0]
+      : workbook.worksheets[0];
+    if (!sheet) throw new Error('No worksheet found');
+    sheet.getRow(1).eachCell((cell, colNum) => {
+      columns.push({ index: colNum, letter: colToLetter(colNum), name: String(cell.value ?? '').trim() });
+    });
+
+  } else if (source_type === 'sheets') {
+    const auth    = getGoogleAuth();
+    const sheets  = google.sheets({ version: 'v4', auth });
+    const range   = sheet_tab ? `${sheet_tab}!1:1` : '1:1';
+    const response = await sheets.spreadsheets.values.get({ spreadsheetId: source_ref, range });
+    const row = ((response.data.values || [[]])[0]) || [];
+    row.forEach((cell, i) => {
+      columns.push({ index: i + 1, letter: colToLetter(i + 1), name: String(cell ?? '').trim() });
+    });
+
+  } else if (source_type === 'drive') {
+    const auth  = getGoogleAuth();
+    const drive = google.drive({ version: 'v3', auth });
+    const resp  = await drive.files.get({ fileId: source_ref, alt: 'media' }, { responseType: 'arraybuffer' });
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(Buffer.from(resp.data));
+    const sheet = sheet_tab
+      ? workbook.getWorksheet(sheet_tab) || workbook.worksheets[0]
+      : workbook.worksheets[0];
+    if (!sheet) throw new Error('No worksheet found');
+    sheet.getRow(1).eachCell((cell, colNum) => {
+      columns.push({ index: colNum, letter: colToLetter(colNum), name: String(cell.value ?? '').trim() });
+    });
+
+  } else {
+    throw new Error(`Unknown source_type: ${source_type}`);
+  }
+
+  return columns;
+}
+
+module.exports = { readSheetData, previewColumns };
