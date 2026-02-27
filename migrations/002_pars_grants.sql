@@ -13,6 +13,9 @@ GRANT SELECT ON ALL TABLES IN SCHEMA pars TO anon;
 -- authenticated: full CRUD on existing tables in pars
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA pars TO authenticated;
 
+-- service_role: full access on existing tables (BYPASSRLS covers RLS but not object-level grants)
+GRANT ALL ON ALL TABLES IN SCHEMA pars TO service_role;
+
 GRANT ALL ON ALL ROUTINES  IN SCHEMA pars TO anon, authenticated, service_role;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA pars TO anon, authenticated, service_role;
 
@@ -24,6 +27,9 @@ ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA pars
 
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA pars
   GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO authenticated;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA pars
+  GRANT ALL ON TABLES TO service_role;
 
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA pars
   GRANT ALL ON ROUTINES TO anon, authenticated, service_role;
